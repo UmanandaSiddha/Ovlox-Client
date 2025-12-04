@@ -1,36 +1,351 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 **Ovlox – Engineering Intelligence Platform**
 
-## Getting Started
+*AI-powered context, insights & automation for engineering teams.*
 
-First, run the development server:
+Ovlox unifies data from **GitHub, Slack, Discord, Notion, Jira** and transforms it into **centralized project intelligence**.\
+The platform ingests commits, pull requests, issues, messages, tasks, and more — then uses **LLMs + vector search** to generate summaries, insights, predictions, and provide **Chat-with-Project** functionality.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 🔥 **Key Features**
+
+### **📥 Multisource Integration**
+
+Connect:
+
+- GitHub (Repos, Commits, PRs, Issues)
+
+- Slack (Channels, Messages)
+
+- Discord (Channels, Messages)
+
+- Notion (Databases, Pages)
+
+- Jira (Issues, Sprints, Tasks)
+
+### **🧠 LLM-Powered Insights**
+
+- Event summarization
+
+- Daily / weekly reports
+
+- Feature progress estimates
+
+- Risk & bottleneck detection
+
+- Chat with the entire project history
+
+- Embedding-based semantic search
+
+### **🏢 Organizations & Roles**
+
+- Multiple organizations
+
+- Predefined roles: Owner, Admin, Developer, Viewer
+
+- Custom roles with permission sets
+
+- Member management + invites
+
+- Identity mapping for contributors
+
+### **🧩 Projects**
+
+- Per-project integrations
+
+- Real-time activity feed
+
+- Event timeline
+
+- AI summaries
+
+- Tasks (from Notion / Jira)
+
+- Project health analytics
+
+### **🕸 Webhooks + Historical Import**
+
+- Webhooks for real-time events
+
+- Historical backfill for repos, channels, tasks
+
+- Automatic normalization & processing
+
+---
+
+# 🏗 **Architecture Overview**
+
+### **Backend (NestJS)**
+
+- **NestJS + Prisma + PostgreSQL**
+
+- **Redis + BullMQ** for queues
+
+- **Socket.IO** for realtime
+
+- **OpenAI / Anthropic / Local Models**
+
+- **Vector storage** (pgvector or external)
+
+- **Robust background workers**
+
+### **Frontend (Next.js)**
+
+- **Next.js 15 App Router**
+
+- **Tailwind + shadcn/ui**
+
+- **Zustand for state**
+
+- **TanStack Query for server state**
+
+- **Server actions + API proxies**
+
+---
+
+# 📂 Folder Structure
+
+```
+ovlox/
+│
+├── backend/
+│   ├── src/
+│   │   ├── modules/
+│   │   │   ├── auth/
+│   │   │   ├── user/
+│   │   │   ├── organization/
+│   │   │   ├── project/
+│   │   │   ├── integration/
+│   │   │   ├── ingestion/
+│   │   │   ├── webhook/
+│   │   │   ├── llm/
+│   │   │   └── events/
+│   │   ├── services/
+│   │   ├── queues/
+│   │   ├── filters/
+│   │   ├── guards/
+│   │   ├── decorators/
+│   │   └── main.ts
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   └── .env
+│
+└── frontend/
+    ├── src/
+    │   ├── app/
+    │   ├── components/
+    │   ├── lib/
+    │   ├── store/
+    │   ├── hooks/
+    │   └── utils/
+    └── .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# 🛢 Database Schema (Core Models)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Includes models for:
 
-## Learn More
+- `User`, `Organization`, `OrganizationMember`
 
-To learn more about Next.js, take a look at the following resources:
+- `RoleTemplate`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `Identity`, `IdentityAlias`, `ContributorMap`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `Project`
 
-## Deploy on Vercel
+- `Integration`, `IntegrationConnection`, `IntegrationResource`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `RawEvent` (normalized provider events)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `CodeChange`
+
+- `Task`
+
+- `LlmOutput`, `Embedding`
+
+- `WebhookEvent`
+
+- `IngestionJob`
+
+> The schema is optimized for:
+>
+> - fast querying
+>
+> - clean integration mapping
+>
+> - scalable ingestion
+>
+> - efficient LLM processing
+>
+> - realtime updates
+
+---
+
+# ⚙️ Backend Setup
+
+### **1. Install dependencies**
+
+```
+pnpm install
+```
+
+### **2. Create** `.env`
+
+```
+DATABASE_URL="postgresql://postgres:password@localhost:5433/ovlox?schema=public"
+REDIS_HOST=localhost
+REDIS_PORT=6379
+JWT_SECRET="long_random_secret"
+```
+
+### **3. Apply Prisma migrations**
+
+```
+npx prisma migrate dev
+```
+
+### **4. Generate Prisma client**
+
+```
+npx prisma generate
+```
+
+### **5. Start backend**
+
+```
+pnpm start:dev
+```
+
+---
+
+# 💻 Frontend Setup
+
+### **1. Install dependencies**
+
+```
+pnpm install
+```
+
+### **2. Create** `.env.local`
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:3000
+```
+
+### **3. Run dev server**
+
+```
+pnpm dev
+```
+
+---
+
+# 🧵 Queues Used
+
+| Queue | Purpose |
+| --- | --- |
+| **INGESTION_QUEUE** | Historical import (repos, channels, tasks) |
+| **WEBHOOK_QUEUE** | All provider webhook events |
+| **LLM_QUEUE** | Summaries, embeddings, analytics |
+| **EMAIL_QUEUE** | Invite + notification emails |
+
+---
+
+# 🤖 LLM Pipeline
+
+1. Raw event arrives (webhook or ingestion)
+
+2. Normalize and store in `RawEvent`
+
+3. Push job → **LLM_QUEUE**
+
+4. Generate:
+
+   - Summary
+
+   - Vector embedding
+
+   - Risk analysis
+
+5. Store in `LlmOutput` + `Embedding`
+
+6. Mark event as `processedByLLM = true`
+
+---
+
+# 🗂 Features In Progress (TODO)
+
+### **Backend**
+
+- 🔲 Finish Auth module (OTP, password, Google)
+
+- 🔲 Organization membership & invitations
+
+- 🔲 Historical ingestion engine & workers
+
+- 🔲 Integration APIs (GitHub/Slack/Discord/Notion/Jira)
+
+- 🔲 Webhook processors
+
+- 🔲 LLM summarization engine
+
+- 🔲 Project chat retrieval system
+
+- 🔲 Task sync (Notion/Jira)
+
+### **Frontend**
+
+- 🔲 Signin / Signup / Forgot password
+
+- 🔲 Dashboard layout (sidebar + topbar)
+
+- 🔲 Organization management UI
+
+- 🔲 Project overview pages
+
+- 🔲 Integration setup wizard
+
+- 🔲 Event feed
+
+- 🔲 Chat-with-project
+
+- 🔲 Task board
+
+- 🔲 Insights views
+
+---
+
+# 🧪 Testing Strategy
+
+- **Unit tests** for services (auth, orgs, projects, integrations)
+
+- **E2E tests** for full workflows
+
+- **Load testing** ingestion pipeline
+
+- **Mock providers** for GitHub/Slack/Discord
+
+---
+
+# 📌 Roadmap
+
+- 🚀 MVP launch with GitHub + Slack + AI summaries
+
+- ✨ Add full project insights & timelines
+
+- 🧠 Expand LLM reasoning agents
+
+- 📊 Advanced analytics dashboards
+
+- 🛠 IDE plugin (VSCode)
+
+- 🧩 Open source public SDK
+
+---
+
+# ❤️ Contributing
+
+PRs, issues, and ideas are welcome.
