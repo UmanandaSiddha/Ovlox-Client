@@ -1,292 +1,223 @@
 "use client"
 
 import * as React from "react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { List, Search, Plus, Grid2X2, Filter, MoreHorizontal, GitBranch, Activity, Settings2, FileText, Copy, Link, CornerUpRight, Trash2, CornerUpLeft, LineChart, GalleryVerticalEnd, Trash, Bell, ArrowUp, ArrowDown, Github } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Plus, Users, Building2, MoreHorizontal, Search, Settings2, FileText, Copy, Link, CornerUpRight, Trash2, LogOut } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
-import { SiDiscord, SiFigma, SiGithub, SiJira, SiSlack } from "react-icons/si"
 
-type Project = {
+type Organization = {
     id: string
     name: string
-    url?: string
-    description?: string
+    logo?: string
+    role: "owner" | "admin" | "member"
+    memberCount: number
+    projectCount: number
 }
 
-const sampleProjects: Project[] = [
-    { id: "1", name: "drokpa", url: "drokpa.vercel.app", description: "feat: added memory component and some UI" },
-    { id: "2", name: "tic-tac-toe", url: "tic-tac-toe.vercel.app", description: "added type any → unknown fdas efadsrfa" },
-    { id: "3", name: "umanandasiddha", url: "umanandasiddha.vercel.app", description: "new resume push das asdasdas sdfas" },
-    { id: "4", name: "good-morning", url: "good-morning.vercel.app", description: "init histury rufus tero natedero yono" },
+const sampleOrganizations: Organization[] = [
+    { id: "1", name: "Acme Inc", role: "owner", memberCount: 12, projectCount: 8 },
+    { id: "2", name: "Tech Corp", role: "admin", memberCount: 5, projectCount: 3 },
+    { id: "3", name: "Dev Studio", role: "member", memberCount: 20, projectCount: 15 },
 ]
 
-const data = [
+const menuItems = [
     [
-        {
-            label: "Customize Page",
-            icon: Settings2,
-        },
-        {
-            label: "Turn into wiki",
-            icon: FileText,
-        },
+        { label: "Settings", icon: Settings2 },
+        { label: "View Details", icon: FileText },
     ],
     [
-        {
-            label: "Copy Link",
-            icon: Link,
-        },
-        {
-            label: "Duplicate",
-            icon: Copy,
-        },
-        {
-            label: "Move to",
-            icon: CornerUpRight,
-        },
-        {
-            label: "Move to Trash",
-            icon: Trash2,
-        },
+        { label: "Copy Link", icon: Link },
+        { label: "Duplicate", icon: Copy },
     ],
     [
-        {
-            label: "Undo",
-            icon: CornerUpLeft,
-        },
-        {
-            label: "View analytics",
-            icon: LineChart,
-        },
-        {
-            label: "Version History",
-            icon: GalleryVerticalEnd,
-        },
-        {
-            label: "Show delete pages",
-            icon: Trash,
-        },
-        {
-            label: "Notifications",
-            icon: Bell,
-        },
-    ],
-    [
-        {
-            label: "Import",
-            icon: ArrowUp,
-        },
-        {
-            label: "Export",
-            icon: ArrowDown,
-        },
+        { label: "Leave Organization", icon: LogOut },
+        { label: "Delete", icon: Trash2 },
     ],
 ]
 
 export default function Dashboard() {
-    const [query, setQuery] = React.useState("")
-    const [view, setView] = React.useState<"grid" | "list">("grid")
+    // Toggle between sample orgs and empty state
+    const [organizations] = React.useState<Organization[]>(sampleOrganizations)
+    const [searchQuery, setSearchQuery] = React.useState("")
+    // const [organizations] = React.useState<Organization[]>([]) // Uncomment to test empty state
 
     const filtered = React.useMemo(() => {
-        if (!query) return sampleProjects
-        return sampleProjects.filter((p) =>
-            `${p.name} ${p.description} ${p.url}`.toLowerCase().includes(query.toLowerCase())
+        if (!searchQuery) return organizations
+        return organizations.filter((org) =>
+            org.name.toLowerCase().includes(searchQuery.toLowerCase())
         )
-    }, [query])
+    }, [organizations, searchQuery])
 
-    return (
-        <div className="p-6 max-w-6xl mx-auto">
-            <div className="mb-6">
-                <div className="flex gap-2 items-center">
-                    <div className="flex-1">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground size-4" />
-                            <Input
-                                placeholder="Search Projects..."
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                className="rounded-md py-5 pl-10"
-                            />
-                        </div>
+    const getRoleBadgeVariant = (role: Organization["role"]) => {
+        switch (role) {
+            case "owner":
+                return "default"
+            case "admin":
+                return "secondary"
+            case "member":
+                return "outline"
+            default:
+                return "outline"
+        }
+    }
+
+    if (organizations.length === 0) {
+        return (
+            <div className="p-6 max-w-6xl mx-auto">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                    <div className="rounded-full bg-muted p-6 mb-4">
+                        <Building2 className="size-12 text-muted-foreground" />
                     </div>
-
-                    <div className="flex items-center gap-2">
-                        <Button variant={"outline"} className="whitespace-nowrap p-5" size="sm">
-                            <Filter className="size-4" />
-                        </Button>
-                        <div className="hidden sm:flex items-center gap-2">
-                            <div className="inline-flex items-center rounded-md bg-card border border-border p-1">
-                                <Button
-                                    variant={view === "list" ? "default" : "ghost"}
-                                    size="icon-sm"
-                                    onClick={() => setView("list")}
-                                    aria-pressed={view === "list"}
-                                >
-                                    <List className="size-4" />
-                                </Button>
-                                <Button
-                                    variant={view === "grid" ? "default" : "ghost"}
-                                    size="icon-sm"
-                                    onClick={() => setView("grid")}
-                                    aria-pressed={view === "grid"}
-                                    className="-ml-px"
-                                >
-                                    <Grid2X2 className="size-4" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        <Button className="whitespace-nowrap p-5" size="sm">
+                    <h2 className="text-2xl font-semibold mb-2">No organizations yet</h2>
+                    <p className="text-muted-foreground mb-6 max-w-md">
+                        Get started by creating your first organization or join an existing one to collaborate with your team.
+                    </p>
+                    <div className="flex items-center gap-3">
+                        <Button size="lg">
                             <Plus className="size-4" />
-                            New Project
+                            Create Organization
+                        </Button>
+                        <Button variant="outline" size="lg">
+                            <Users className="size-4" />
+                            Join Organization
                         </Button>
                     </div>
                 </div>
             </div>
+        )
+    }
 
-            <div>
-                {view === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filtered.map((p) => (
-                            <article key={p.id} className="border border-border rounded-md p-4 bg-card shadow-sm">
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex items-start gap-3 min-w-0">
-                                        <Avatar className="h-8 w-8 rounded-lg">
-                                            <AvatarImage src={p.url} alt={p.name} />
-                                            <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                                        </Avatar>
-                                        <div className="grid flex-1 text-left text-sm leading-tight">
-                                            <span className="truncate font-medium">{p.name}</span>
-                                            {p.url && (
-                                                <a href={p.url} target="blank" className="truncate text-xs hover:underline">{p.url}</a>
-                                            )}
-                                        </div>
+    return (
+        <div className="p-6 max-w-6xl mx-auto">
+            <div className="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-semibold">Organizations</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Manage and access your organizations
+                    </p>
+                </div>
+                <Button>
+                    <Plus className="size-4" />
+                    New Organization
+                </Button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="mb-6">
+                <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground size-4" />
+                    <Input
+                        placeholder="Search organizations..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map((org) => (
+                    <article
+                        key={org.id}
+                        className="group relative border border-border rounded-lg p-6 bg-card shadow-sm hover:shadow-lg hover:border-primary/50 transition-all duration-200 cursor-pointer overflow-hidden"
+                    >
+                        {/* Subtle gradient background on hover */}
+                        <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
+                        <div className="relative">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                    <Avatar className="h-14 w-14 rounded-lg ring-2 ring-border group-hover:ring-primary/30 transition-all duration-200">
+                                        <AvatarImage src={org.logo} alt={org.name} />
+                                        <AvatarFallback className="rounded-lg text-lg font-semibold bg-linear-to-br from-primary/20 to-primary/10">
+                                            {org.name.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
+                                            {org.name}
+                                        </h3>
+                                        <Badge variant={getRoleBadgeVariant(org.role)} className="mt-1.5 capitalize text-xs">
+                                            {org.role}
+                                        </Badge>
                                     </div>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="data-[state=open]:bg-accent h-7 w-7"
-                                            >
-                                                <MoreHorizontal className="size-4" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent
-                                            className="w-56 overflow-hidden rounded-lg p-0"
-                                            align="end"
+                                </div>
+
+                                {/* Three-dot menu */}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 -mt-1 -mr-2"
+                                            onClick={(e) => e.stopPropagation()}
                                         >
-                                            <Sidebar collapsible="none" className="bg-transparent">
-                                                <SidebarContent>
-                                                    {data.map((group, index) => (
-                                                        <SidebarGroup key={index} className="border-b last:border-none">
-                                                            <SidebarGroupContent className="gap-0">
-                                                                <SidebarMenu>
-                                                                    {group.map((item, index) => (
-                                                                        <SidebarMenuItem key={index}>
-                                                                            <SidebarMenuButton>
-                                                                                <item.icon /> <span>{item.label}</span>
-                                                                            </SidebarMenuButton>
-                                                                        </SidebarMenuItem>
-                                                                    ))}
-                                                                </SidebarMenu>
-                                                            </SidebarGroupContent>
-                                                        </SidebarGroup>
-                                                    ))}
-                                                </SidebarContent>
-                                            </Sidebar>
-                                        </PopoverContent>
-                                    </Popover>
+                                            <MoreHorizontal className="size-4" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                        className="w-56 overflow-hidden rounded-lg p-0"
+                                        align="end"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Sidebar collapsible="none" className="bg-transparent">
+                                            <SidebarContent>
+                                                {menuItems.map((group, index) => (
+                                                    <SidebarGroup key={index} className="border-b last:border-none">
+                                                        <SidebarGroupContent className="gap-0">
+                                                            <SidebarMenu>
+                                                                {group.map((item, idx) => (
+                                                                    <SidebarMenuItem key={idx}>
+                                                                        <SidebarMenuButton>
+                                                                            <item.icon className="size-4" />
+                                                                            <span>{item.label}</span>
+                                                                        </SidebarMenuButton>
+                                                                    </SidebarMenuItem>
+                                                                ))}
+                                                            </SidebarMenu>
+                                                        </SidebarGroupContent>
+                                                    </SidebarGroup>
+                                                ))}
+                                            </SidebarContent>
+                                        </Sidebar>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            <div className="flex items-center gap-4 pt-4 border-t border-border/50">
+                                {/* Stacked avatars for members */}
+                                <div className="flex items-center gap-2">
+                                    <div className="flex -space-x-2">
+                                        {[...Array(Math.min(org.memberCount, 3))].map((_, i) => (
+                                            <Avatar key={i} className="size-6 border-2 border-card">
+                                                <AvatarFallback className="text-xs">
+                                                    {String.fromCharCode(65 + i)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        ))}
+                                        {org.memberCount > 3 && (
+                                            <div className="size-6 rounded-full border-2 border-card bg-muted flex items-center justify-center">
+                                                <span className="text-xs font-medium">+{org.memberCount - 3}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">members</span>
                                 </div>
-                                <p className="mt-2 text-sm text-muted-foreground">{p.description}</p>
-                                <div className="mt-4 flex items-start gap-3 min-w-0">
-                                    <SiGithub className="size-5" />
-                                    <SiSlack className="size-5" />
-                                    <SiDiscord className="size-5" />
-                                    <SiJira className="size-5" />
-                                    <SiFigma className="size-5" />
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-3">
-                        {filtered.map((p) => (
-                            <div key={p.id} className="border border-border rounded-md p-4 bg-card w-full">
-                                <div className="grid grid-cols-[3rem_2fr_3fr_auto_auto] items-center gap-4 w-full">
-                                    <div className="flex items-center">
-                                        <Avatar className="h-8 w-8 rounded-lg">
-                                            <AvatarImage src={p.url} alt={p.name} />
-                                            <AvatarFallback className="rounded-lg">{p.name.charAt(0).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                    </div>
 
-                                    <div className="min-w-0">
-                                        <div className="flex flex-col">
-                                            <span className="truncate font-medium">{p.name}</span>
-                                            {p.url && (
-                                                <a href={p.url} target="_blank" rel="noreferrer" className="truncate text-xs hover:underline">{p.url}</a>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="min-w-0">
-                                        <p className="text-sm text-muted-foreground truncate">{p.description}</p>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <SiGithub className="size-5" />
-                                        <SiSlack className="size-5" />
-                                        <SiDiscord className="size-5" />
-                                        <SiJira className="size-5" />
-                                        <SiFigma className="size-5" />
-                                    </div>
-
-                                    <div className="flex items-center justify-end">
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="data-[state=open]:bg-accent h-7 w-7"
-                                                >
-                                                    <MoreHorizontal className="size-4" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent
-                                                className="w-56 overflow-hidden rounded-lg p-0"
-                                                align="end"
-                                            >
-                                                <Sidebar collapsible="none" className="bg-transparent">
-                                                    <SidebarContent>
-                                                        {data.map((group, index) => (
-                                                            <SidebarGroup key={index} className="border-b last:border-none">
-                                                                <SidebarGroupContent className="gap-0">
-                                                                    <SidebarMenu>
-                                                                        {group.map((item, index) => (
-                                                                            <SidebarMenuItem key={index}>
-                                                                                <SidebarMenuButton>
-                                                                                    <item.icon /> <span>{item.label}</span>
-                                                                                </SidebarMenuButton>
-                                                                            </SidebarMenuItem>
-                                                                        ))}
-                                                                    </SidebarMenu>
-                                                                </SidebarGroupContent>
-                                                            </SidebarGroup>
-                                                        ))}
-                                                    </SidebarContent>
-                                                </Sidebar>
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
+                                {/* Projects count with icon */}
+                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                    <Building2 className="size-4" />
+                                    <span className="font-medium">{org.projectCount}</span>
+                                    <span className="text-xs">projects</span>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                )}
+                        </div>
+                    </article>
+                ))}
             </div>
         </div>
     )

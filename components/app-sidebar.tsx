@@ -2,16 +2,16 @@
 
 import * as React from "react"
 import {
-    AudioWaveform,
-    BookOpen,
-    Bot,
-    Command,
-    Frame,
-    GalleryVerticalEnd,
-    Map,
-    PieChart,
-    Settings2,
-    SquareTerminal,
+    LayoutDashboard,
+    Building2,
+    FolderKanban,
+    GitBranch,
+    Users,
+    Sparkles,
+    MessageSquare,
+    BarChart3,
+    CalendarDays,
+    ListChecks,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -35,122 +35,140 @@ const data = {
     organizations: [
         {
             name: "Acme Inc",
-            logo: GalleryVerticalEnd,
+            logo: Building2,
             plan: "Enterprise",
         },
         {
             name: "Acme Corp.",
-            logo: AudioWaveform,
+            logo: Building2,
             plan: "Startup",
-        },
-        {
-            name: "Evil Corp.",
-            logo: Command,
-            plan: "Free",
         },
     ],
     navMain: [
         {
-            title: "Playground",
-            url: "#",
-            icon: SquareTerminal,
+            title: "Dashboard",
+            url: "/dashboard",
+            icon: LayoutDashboard,
             isActive: true,
             items: [
                 {
-                    title: "History",
-                    url: "#",
-                },
-                {
-                    title: "Starred",
-                    url: "#",
-                },
-                {
-                    title: "Settings",
-                    url: "#",
+                    title: "Overview",
+                    url: "/dashboard",
                 },
             ],
         },
         {
-            title: "Models",
-            url: "#",
-            icon: Bot,
+            title: "Organizations",
+            url: "/dashboard/organizations",
+            icon: Users,
             items: [
                 {
-                    title: "Genesis",
-                    url: "#",
+                    title: "All Organizations",
+                    url: "/dashboard/organizations",
                 },
                 {
-                    title: "Explorer",
-                    url: "#",
-                },
-                {
-                    title: "Quantum",
-                    url: "#",
+                    title: "New Organization",
+                    url: "/dashboard/organizations/new",
                 },
             ],
         },
         {
-            title: "Documentation",
-            url: "#",
-            icon: BookOpen,
+            title: "Projects",
+            url: "/dashboard/projects",
+            icon: FolderKanban,
             items: [
                 {
-                    title: "Introduction",
-                    url: "#",
+                    title: "All Projects",
+                    url: "/dashboard/projects",
                 },
                 {
-                    title: "Get Started",
-                    url: "#",
-                },
-                {
-                    title: "Tutorials",
-                    url: "#",
-                },
-                {
-                    title: "Changelog",
-                    url: "#",
+                    title: "New Project",
+                    url: "/dashboard/projects/new",
                 },
             ],
         },
         {
-            title: "Settings",
-            url: "#",
-            icon: Settings2,
+            title: "Insights",
+            url: "/dashboard/projects/[projectId]/insights",
+            icon: BarChart3,
             items: [
                 {
-                    title: "General",
-                    url: "#",
+                    title: "Analytics",
+                    url: "/dashboard/projects/[projectId]/insights",
                 },
+            ],
+        },
+        {
+            title: "AI Assistant",
+            url: "/dashboard/projects/[projectId]/chat",
+            icon: Sparkles,
+            items: [
                 {
-                    title: "Team",
-                    url: "#",
+                    title: "Project AI Chat",
+                    url: "/dashboard/projects/[projectId]/chat",
                 },
+            ],
+        },
+        {
+            title: "Tasks",
+            url: "/dashboard/projects/[projectId]/tasks",
+            icon: ListChecks,
+            items: [
                 {
-                    title: "Billing",
-                    url: "#",
+                    title: "Task Board",
+                    url: "/dashboard/projects/[projectId]/tasks",
                 },
+            ],
+        },
+        {
+            title: "Events",
+            url: "/dashboard/projects/[projectId]/events",
+            icon: CalendarDays,
+            items: [
                 {
-                    title: "Limits",
-                    url: "#",
+                    title: "Meetings & Events",
+                    url: "/dashboard/projects/[projectId]/events",
+                },
+            ],
+        },
+        {
+            title: "Updates",
+            url: "/dashboard/projects/[projectId]/analysis",
+            icon: MessageSquare,
+            items: [
+                {
+                    title: "Data Source Analysis",
+                    url: "/dashboard/projects/[projectId]/analysis",
+                },
+            ],
+        },
+        {
+            title: "Roadmap",
+            url: "/dashboard/projects/[projectId]/page",
+            icon: GitBranch,
+            items: [
+                {
+                    title: "Project Overview",
+                    url: "/dashboard/projects/[projectId]",
                 },
             ],
         },
     ],
     projects: [
         {
-            name: "Design Engineering",
-            url: "#",
-            icon: Frame,
+            name: "Project Alpha",
+            url: "/dashboard/projects/alpha",
+            icon: FolderKanban,
         },
         {
-            name: "Sales & Marketing",
-            url: "#",
-            icon: PieChart,
+            name: "Project Beta",
+            url: "/dashboard/projects/beta",
+            icon: FolderKanban,
         },
         {
-            name: "Travel",
-            url: "#",
-            icon: Map,
+            name: "Project Gamma",
+            url: "/dashboard/projects/gamma",
+            icon: FolderKanban,
         },
     ],
 }
