@@ -1,3 +1,8 @@
+"use client"
+
+import * as React from "react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,16 +16,47 @@ import {
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { PlaceholderImage } from "@/assets"
+import { useAuthStore } from "@/store/auth.store"
+import { toast } from "sonner"
 
 export function SigninForm({
     className,
     ...props
 }: React.ComponentProps<"div">) {
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const from = searchParams.get("from") || "/dashboard"
+    const { auth } = useAuthStore()
+
+    const [email, setEmail] = React.useState("")
+    const [password, setPassword] = React.useState("")
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+    const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        if (!email || !password) return
+        setIsSubmitting(true)
+        try {
+            await auth.login({ email, password })
+            toast.success("Welcome back!", { description: "You are now signed in." })
+            router.push(from)
+        } catch (error: any) {
+            toast.error("Sign in failed", { description: error?.response?.data?.message || "Please check your credentials." })
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const signupHref = React.useMemo(() => {
+        const base = "/signup"
+        return from ? `${base}?from=${encodeURIComponent(from)}` : base
+    }, [from])
+
     return (
         <div className={cn("flex flex-col gap-6", className)} {...props}>
             <Card className="overflow-hidden p-0">
                 <CardContent className="grid p-0 md:grid-cols-2">
-                    <form className="p-6 md:p-8">
+                    <form className="p-6 md:p-8" onSubmit={onSubmit}>
                         <FieldGroup>
                             <div className="flex flex-col items-center gap-2 text-center">
                                 <h1 className="text-2xl font-bold">Welcome back</h1>
@@ -35,22 +71,32 @@ export function SigninForm({
                                     type="email"
                                     placeholder="m@example.com"
                                     required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                 />
                             </Field>
                             <Field>
                                 <div className="flex items-center">
                                     <FieldLabel htmlFor="password">Password</FieldLabel>
-                                    <a
-                                        href="#"
+                                    <Link
+                                        href="/reset-password"
                                         className="ml-auto text-sm underline-offset-2 hover:underline"
                                     >
                                         Forgot your password?
-                                    </a>
+                                    </Link>
                                 </div>
-                                <Input id="password" type="password" required />
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
                             </Field>
                             <Field>
-                                <Button type="submit">Login</Button>
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? "Signing in..." : "Login"}
+                                </Button>
                             </Field>
                             <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                                 Or continue with
@@ -67,7 +113,7 @@ export function SigninForm({
                                 </Button>
                             </Field>
                             <FieldDescription className="text-center">
-                                Don&apos;t have an account? <a href="#">Sign up</a>
+                                Don&apos;t have an account? <Link href={signupHref}>Sign up</Link>
                             </FieldDescription>
                         </FieldGroup>
                     </form>

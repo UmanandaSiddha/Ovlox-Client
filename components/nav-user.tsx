@@ -29,6 +29,10 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
+import { logout } from "@/services/auth.service"
+import { toast } from "sonner"
+import React from "react"
+import { useRouter } from "next/navigation"
 
 export function NavUser({
     user,
@@ -36,10 +40,25 @@ export function NavUser({
     user: {
         name: string
         email: string
-        avatar: string
+        avatar: string | undefined
     }
 }) {
-    const { isMobile } = useSidebar()
+    const router = useRouter();
+    const { isMobile } = useSidebar();
+    const [loading, setIsLoading] = React.useState(false);
+
+    const handleLogout = async () => {
+        setIsLoading(true);
+        try {
+            await logout();
+            toast.success("Logged out successfully");
+            router.replace("/signin");
+        } catch (error: any) {
+            toast.error("Failed to logout", { description: error?.response?.data?.message || "Something went wrong!." });
+        } finally {
+            setIsLoading(false);
+        }
+    }
 
     return (
         <SidebarMenu>
@@ -102,9 +121,9 @@ export function NavUser({
                             </DropdownMenuItem>
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleLogout}>
                             <LogOut />
-                            Log out
+                            {loading ? "Loading..." : "Log out"}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

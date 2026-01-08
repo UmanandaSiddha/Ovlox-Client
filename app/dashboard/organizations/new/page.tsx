@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
     Building2,
     Users,
@@ -31,27 +30,49 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { ExternalProvider, PredefinedOrgRole } from "@/types/enum"
+import { z } from "zod";
+import { createOrg, CreateOrgPayload } from "@/services/org.service"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 type Step = "details" | "members" | "integrations"
 
+const createOrgSchema = z.object({
+    name: z.string().min(1, "Organization name is required"),
+    inviteMembers: z.array(
+        z.object({
+            email: z.string().email("Invalid email address"),
+            predefinedRole: z.nativeEnum(PredefinedOrgRole),
+        })
+    ).optional(),
+    appProviders: z.array(
+        z.object({
+            provider: z.nativeEnum(ExternalProvider),
+        })
+    ).optional(),
+});
+
 type InviteMember = {
-    id: string
-    email: string
-    role: "admin" | "member"
+    id: string;
+    email: string;
+    role: PredefinedOrgRole;
 }
 
 type Integration = {
-    id: string
-    name: string
-    description: string
-    icon: React.ReactNode
-    connected: boolean
+    id: string;
+    name: string;
+    enum: ExternalProvider;
+    description: string;
+    icon: React.ReactNode;
+    connected: boolean;
 }
 
 const availableIntegrations: Integration[] = [
     {
         id: "github",
         name: "GitHub",
+        enum: ExternalProvider.GITHUB,
         description: "Connect repositories and track commits",
         icon: <SiGithub className="size-6" />,
         connected: false,
@@ -59,6 +80,7 @@ const availableIntegrations: Integration[] = [
     {
         id: "slack",
         name: "Slack",
+        enum: ExternalProvider.SLACK,
         description: "Send notifications to channels",
         icon: <SiSlack className="size-6" />,
         connected: false,
@@ -66,6 +88,7 @@ const availableIntegrations: Integration[] = [
     {
         id: "discord",
         name: "Discord",
+        enum: ExternalProvider.DISCORD,
         description: "Connect with Discord servers",
         icon: <SiDiscord className="size-6" />,
         connected: false,
@@ -73,6 +96,7 @@ const availableIntegrations: Integration[] = [
     {
         id: "jira",
         name: "Jira",
+        enum: ExternalProvider.JIRA,
         description: "Sync issues and track progress",
         icon: <SiJira className="size-6" />,
         connected: false,
@@ -80,6 +104,7 @@ const availableIntegrations: Integration[] = [
     {
         id: "figma",
         name: "Figma",
+        enum: ExternalProvider.FIGMA,
         description: "Link design files and prototypes",
         icon: <SiFigma className="size-6" />,
         connected: false,
@@ -87,6 +112,7 @@ const availableIntegrations: Integration[] = [
     {
         id: "notion",
         name: "Notion",
+        enum: ExternalProvider.NOTION,
         description: "Connect workspaces and pages",
         icon: <SiNotion className="size-6" />,
         connected: false,
@@ -94,14 +120,16 @@ const availableIntegrations: Integration[] = [
 ]
 
 export default function NewOrganization() {
+    const router = useRouter()
     const [currentStep, setCurrentStep] = React.useState<Step>("details")
     const [orgName, setOrgName] = React.useState("")
     const [orgDescription, setOrgDescription] = React.useState("")
     const [orgWebsite, setOrgWebsite] = React.useState("")
     const [members, setMembers] = React.useState<InviteMember[]>([])
     const [newEmail, setNewEmail] = React.useState("")
-    const [newRole, setNewRole] = React.useState<"admin" | "member">("member")
+    const [newRole, setNewRole] = React.useState<PredefinedOrgRole>(PredefinedOrgRole.DEVELOPER)
     const [selectedIntegrations, setSelectedIntegrations] = React.useState<string[]>([])
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
 
     const steps = [
         { id: "details", label: "Organization Details", icon: Building2 },
@@ -117,7 +145,7 @@ export default function NewOrganization() {
                 role: newRole,
             }])
             setNewEmail("")
-            setNewRole("member")
+            setNewRole(PredefinedOrgRole.DEVELOPER)
         }
     }
 
@@ -148,14 +176,53 @@ export default function NewOrganization() {
         else if (currentStep === "members") setCurrentStep("details")
     }
 
-    const handleCreate = () => {
-        console.log("Creating organization:", {
-            name: orgName,
-            description: orgDescription,
-            website: orgWebsite,
-            members,
-            integrations: selectedIntegrations,
-        })
+    const handleCreate = async () => {
+        try {
+            setIsSubmitting(true);
+
+            // Prepare data for API
+            const orgData: CreateOrgPayload = {
+                name: orgName.trim(),
+                inviteMembers: members.length > 0
+                    ? members.map((member) => ({
+                        email: member.email,
+                        predefinedRole: member.role,
+                    }))
+                    : undefined,
+                appProviders: selectedIntegrations.length > 0
+                    ? selectedIntegrations.map((integrationId) => {
+                        const integration = availableIntegrations.find((i) => i.id === integrationId);
+                        return {
+                            provider: integration!.enum,
+                        };
+                    })
+                    : undefined,
+            };
+
+            // Validate with Zod
+            const validatedData = createOrgSchema.parse(orgData);
+
+            // Call API
+            const response = await createOrg(validatedData);
+
+            toast.success("Organization created successfully!");
+
+            // Redirect to the new organization page
+            router.push(`/dashboard/organizations/${response.organization.id}`);
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                // Handle validation errors
+                const errorMessage = error.issues.map((err) => err.message).join(", ");
+                toast.error(`Validation error: ${errorMessage}`);
+            } else if (error instanceof Error) {
+                toast.error(error.message || "Failed to create organization");
+            } else {
+                toast.error("Failed to create organization. Please try again.");
+            }
+            console.error("Error creating organization:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     const getStepIndex = (step: Step) => steps.findIndex(s => s.id === step)
@@ -308,13 +375,17 @@ export default function NewOrganization() {
                                             }}
                                         />
                                     </div>
-                                    <Select value={newRole} onValueChange={(value: "admin" | "member") => setNewRole(value)}>
+                                    <Select value={newRole} onValueChange={(value: PredefinedOrgRole) => setNewRole(value)}>
                                         <SelectTrigger className="w-[140px]">
                                             <SelectValue placeholder="Role" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="admin">Admin</SelectItem>
-                                            <SelectItem value="member">Member</SelectItem>
+                                            <SelectItem value={PredefinedOrgRole.OWNER}>Owner</SelectItem>
+                                            <SelectItem value={PredefinedOrgRole.ADMIN}>Admin</SelectItem>
+                                            <SelectItem value={PredefinedOrgRole.CEO}>CEO</SelectItem>
+                                            <SelectItem value={PredefinedOrgRole.CTO}>CTO</SelectItem>
+                                            <SelectItem value={PredefinedOrgRole.DEVELOPER}>Developer</SelectItem>
+                                            <SelectItem value={PredefinedOrgRole.VIEWER}>Viewer</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <Button onClick={addMember} disabled={!newEmail}>
@@ -343,8 +414,17 @@ export default function NewOrganization() {
                                                 </Avatar>
                                                 <div>
                                                     <p className="font-medium">{member.email}</p>
-                                                    <Badge variant={member.role === "admin" ? "secondary" : "outline"} className="mt-1 text-xs capitalize">
-                                                        {member.role}
+                                                    <Badge
+                                                        variant={
+                                                            member.role === PredefinedOrgRole.OWNER || member.role === PredefinedOrgRole.CEO || member.role === PredefinedOrgRole.CTO
+                                                                ? "default"
+                                                                : member.role === PredefinedOrgRole.ADMIN
+                                                                    ? "secondary"
+                                                                    : "outline"
+                                                        }
+                                                        className="mt-1 text-xs capitalize"
+                                                    >
+                                                        {member.role.toLowerCase()}
                                                     </Badge>
                                                 </div>
                                             </div>
@@ -448,9 +528,9 @@ export default function NewOrganization() {
                                     <ArrowRight className="size-4" />
                                 </Button>
                             ) : (
-                                <Button onClick={handleCreate} disabled={!canProceed()}>
+                                <Button onClick={handleCreate} disabled={!canProceed() || isSubmitting}>
                                     <Check className="size-4" />
-                                    Create Organization
+                                    {isSubmitting ? "Creating..." : "Create Organization"}
                                 </Button>
                             )}
                         </div>

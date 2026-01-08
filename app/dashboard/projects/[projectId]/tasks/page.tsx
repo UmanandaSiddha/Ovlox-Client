@@ -179,7 +179,7 @@ export default function Tasks() {
     }
 
     return (
-        <div className="p-6 max-w-6xl mx-auto">
+        <div className="p-6 max-w-7xl mx-auto space-y-6">
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
                 <div>

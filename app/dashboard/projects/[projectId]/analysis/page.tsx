@@ -21,9 +21,16 @@ import {
     Calendar,
     FileText,
     Minimize2,
-    Maximize2
+    Maximize2,
+    Code,
+    ExternalLink,
+    Star,
+    GitFork,
+    CalendarClock
 } from "lucide-react"
 import { SiGithub, SiJira, SiSlack, SiNotion, SiFigma, SiDiscord } from "react-icons/si"
+import { useRouter, usePathname, useSearchParams, useParams } from "next/navigation"
+import { getGithubOverview, type GitHubOverview } from "@/services/github.service"
 
 type DataSource = {
     id: string
@@ -211,7 +218,14 @@ type ChatMessage = {
 }
 
 export default function Analysis() {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    const params = useParams()
+    const projectId = params.projectId as string
     const [selectedSource, setSelectedSource] = React.useState("all")
+    const [githubOverview, setGithubOverview] = React.useState<GitHubOverview | null>(null)
+    const [isLoadingGithub, setIsLoadingGithub] = React.useState(true)
     const [chatOpen, setChatOpen] = React.useState(false)
     const [chatMinimized, setChatMinimized] = React.useState(false)
     const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([
@@ -230,6 +244,43 @@ export default function Analysis() {
         if (selectedSource === "all") return summaries
         return summaries.filter(s => s.source === selectedSource)
     }, [selectedSource])
+
+    React.useEffect(() => {
+        const source = searchParams.get("source")
+        if (source && dataSources.some(s => s.id === source)) {
+            setSelectedSource(source)
+        } else {
+            const params = new URLSearchParams(searchParams)
+            params.set("source", "all")
+            router.replace(`${pathname}?${params.toString()}`)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    React.useEffect(() => {
+        const fetchGithubOverview = async () => {
+            try {
+                setIsLoadingGithub(true)
+                const data = await getGithubOverview(projectId)
+                setGithubOverview(data)
+            } catch (error) {
+                console.error("Failed to fetch GitHub overview:", error)
+            } finally {
+                setIsLoadingGithub(false)
+            }
+        }
+
+        if (projectId) {
+            fetchGithubOverview()
+        }
+    }, [projectId])
+
+    const handleSourceChange = (id: string) => {
+        setSelectedSource(id)
+        const params = new URLSearchParams(searchParams)
+        params.set("source", id)
+        router.replace(`${pathname}?${params.toString()}`)
+    }
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -285,7 +336,7 @@ export default function Analysis() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-6 max-w-7xl mx-auto space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -307,7 +358,7 @@ export default function Analysis() {
                     return (
                         <button
                             key={source.id}
-                            onClick={() => setSelectedSource(source.id)}
+                            onClick={() => handleSourceChange(source.id)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${selectedSource === source.id
                                 ? `${source.bgColor} border-current`
                                 : "bg-background hover:bg-muted"
@@ -330,9 +381,138 @@ export default function Analysis() {
                 {filteredSummaries.map((summary) => {
                     const sourceData = dataSources.find(s => s.id === summary.source)
                     const SourceIcon = sourceData?.icon || FileText
+                    const isGithub = summary.source === "github"
+
+                    // Special rendering for GitHub Repository Activity Summary
+                    if (summary.id === "1" && githubOverview) {
+                        return (
+                            <Card
+                                key={summary.id}
+                                className="p-5 hover:shadow-xl hover:border-primary/30 transition-all duration-200 border-border/50 cursor-pointer"
+                                onClick={() => router.push(`${pathname}/github`)}
+                            >
+                                {/* Header */}
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`p-2 rounded-lg ${sourceData?.bgColor}`}>
+                                            <SourceIcon className={`size-4 ${sourceData?.color}`} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-sm">Repository Activity Summary</h3>
+                                            <p className="text-xs text-muted-foreground">
+                                                {githubOverview.repo.name} • {sourceData?.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTypeBadge("success")}`}>
+                                        {getTypeIcon("success")}
+                                        <span className="capitalize">Live</span>
+                                    </div>
+                                </div>
+
+                                {/* Content */}
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Active development on <span className="font-medium text-foreground">{githubOverview.repo.name}</span> repository{githubOverview.repo.description && `: ${githubOverview.repo.description}`}
+                                </p>
+
+                                {/* Metrics */}
+                                <div className="flex gap-4 mb-4 pb-4 border-b">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Commits</p>
+                                        <p className="text-lg font-bold">{githubOverview.activity.commits}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">PRs</p>
+                                        <p className="text-lg font-bold">{githubOverview.activity.pullRequests}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Issues</p>
+                                        <p className="text-lg font-bold">{githubOverview.activity.issues}</p>
+                                    </div>
+                                </div>
+
+                                {/* Repository Info */}
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                        <span>⭐</span>
+                                        <span>{githubOverview.repo.stars} stars</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <span>🍴</span>
+                                        <span>{githubOverview.repo.forks} forks</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <span>🌿</span>
+                                        <span>{githubOverview.repo.defaultBranch}</span>
+                                    </div>
+                                </div>
+                            </Card>
+                        )
+                    }
+
+                    // Special rendering for Code Quality & Reviews card
+                    if (summary.id === "4") {
+                        return (
+                            <Card
+                                key={summary.id}
+                                className="p-5 hover:shadow-xl hover:border-primary/30 transition-all duration-200 border-border/50"
+                            >
+                                {/* Header */}
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`p-2 rounded-lg ${sourceData?.bgColor}`}>
+                                            <SourceIcon className={`size-4 ${sourceData?.color}`} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-sm">{summary.title}</h3>
+                                            <p className="text-xs text-muted-foreground">
+                                                Review pending items • {sourceData?.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTypeBadge(summary.type)}`}>
+                                        {getTypeIcon(summary.type)}
+                                        <span className="capitalize">{summary.type}</span>
+                                    </div>
+                                </div>
+
+                                {/* Content */}
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Review code quality, pending pull requests, and ensure best practices across your repository.
+                                </p>
+
+                                {/* Action Buttons */}
+                                <div className="flex flex-col gap-4">
+                                    <Button
+                                        onClick={() => router.push(`${pathname}/github?tab=prs`)}
+                                        className="flex-1 gap-2"
+                                        variant="outline"
+                                    >
+                                        <Code className="size-4" />
+                                        Review Now
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            // TODO: Implement schedule functionality
+                                            alert("Schedule review functionality coming soon!")
+                                        }}
+                                        className="flex-1 gap-2"
+                                        variant="outline"
+                                    >
+                                        <CalendarClock className="size-4" />
+                                        Schedule Review
+                                    </Button>
+                                </div>
+                            </Card>
+                        )
+                    }
 
                     return (
-                        <Card key={summary.id} className="p-5 hover:shadow-md transition-shadow">
+                        <Card
+                            key={summary.id}
+                            className={`p-5 hover:shadow-xl hover:border-primary/30 transition-all duration-200 border-border/50 ${isGithub ? "cursor-pointer" : ""}`}
+                            onClick={isGithub ? () => router.push(`${pathname}/github`) : undefined}
+                        >
                             {/* Header */}
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-2">

@@ -8,8 +8,10 @@ interface AuthState {
     auth: {
         user: IUser | null;
         isLoading: boolean;
+        accessToken?: string | null;
+        refreshToken?: string | null;
         hasRole: (roles: UserRoleType[]) => boolean;
-        login: (phoneNumber: string, password: string) => Promise<void>;
+        login: (params: { phoneNumber?: string; email?: string; password: string }) => Promise<void>;
         setUser: (user: IUser | null) => void;
         logout: () => Promise<void>;
         fetchUser: () => Promise<void>;
@@ -35,9 +37,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         reset: () => set((state) => ({ ...state, auth: { ...state.auth, user: null, isLoading: false, accessToken: null, refreshToken: null } })),
 
-        login: async (phoneNumber, password) => {
+        login: async ({ phoneNumber, email, password }) => {
             try {
-                const { accessToken, refreshToken, user } = await login({ phoneNumber, password });
+                const { accessToken, refreshToken, data: user } = await login({ phoneNumber, email, password });
                 Cookies.set(ACCESS_TOKEN, accessToken);
                 Cookies.set(REFRESH_TOKEN, refreshToken);
                 set((state) => ({ ...state, auth: { ...state.auth, user, accessToken, refreshToken, isLoading: false } }));

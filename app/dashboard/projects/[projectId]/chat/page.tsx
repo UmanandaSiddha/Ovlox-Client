@@ -2,63 +2,102 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
     Send,
-    Sparkles,
-    Copy,
-    ThumbsUp,
-    ThumbsDown,
-    RotateCcw,
-    Zap,
-    Database,
-    TrendingUp,
+    Plus,
+    Search,
+    Phone,
+    Video,
+    MoreVertical,
+    Paperclip,
+    Smile,
+    Settings,
     Users,
-    Calendar,
-    AlertCircle
+    Hash,
+    MessageSquare
 } from "lucide-react"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 
 type Message = {
     id: string
-    role: "user" | "assistant"
+    author: { name: string; avatar?: string }
     content: string
     timestamp: Date
-    sources?: string[]
-    suggestions?: string[]
+    reactions?: { emoji: string; count: number }[]
 }
 
-const initialMessages: Message[] = [
+type Channel = {
+    id: string
+    name: string
+    type: "public" | "direct"
+    unread: number
+    members?: number
+    lastMessage?: string
+    lastMessageTime?: Date
+}
+
+const channels: Channel[] = [
+    { id: "1", name: "general", type: "public", unread: 0, members: 12, lastMessage: "Check out the new design", lastMessageTime: new Date(Date.now() - 300000) },
+    { id: "2", name: "frontend", type: "public", unread: 3, members: 5, lastMessage: "Component review completed", lastMessageTime: new Date(Date.now() - 600000) },
+    { id: "3", name: "backend", type: "public", unread: 0, members: 4, lastMessage: "API endpoints ready", lastMessageTime: new Date(Date.now() - 1800000) },
+    { id: "4", name: "design", type: "public", unread: 1, members: 3, lastMessage: "Mockups uploaded", lastMessageTime: new Date(Date.now() - 3600000) },
+    { id: "5", name: "John Doe", type: "direct", unread: 2, lastMessage: "Can you review my PR?", lastMessageTime: new Date(Date.now() - 900000) },
+    { id: "6", name: "Jane Smith", type: "direct", unread: 0, lastMessage: "Thanks for the update!", lastMessageTime: new Date(Date.now() - 5400000) },
+]
+
+const messages: Message[] = [
     {
         id: "1",
-        role: "assistant",
-        content: "Hello! I'm your Project AI Assistant. I can help you understand your project data, analyze trends, and answer questions about your team's progress. What would you like to know?",
-        timestamp: new Date(Date.now() - 600000),
-        suggestions: [
-            "How is our team performing?",
-            "What are the overdue tasks?",
-            "Show me recent data source updates",
-            "How much progress have we made this week?"
-        ]
-    }
+        author: { name: "John Doe", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=John" },
+        content: "Hey team! Check out the new design components I just pushed",
+        timestamp: new Date(Date.now() - 3600000),
+        reactions: [{ emoji: "👍", count: 3 }, { emoji: "🚀", count: 1 }]
+    },
+    {
+        id: "2",
+        author: { name: "Jane Smith", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" },
+        content: "Looks great! I'll start integrating them into the main layout",
+        timestamp: new Date(Date.now() - 3400000),
+    },
+    {
+        id: "3",
+        author: { name: "Bob Wilson", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bob" },
+        content: "The UI looks really polished! Any breaking changes I should know about?",
+        timestamp: new Date(Date.now() - 3200000),
+    },
+    {
+        id: "4",
+        author: { name: "John Doe", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=John" },
+        content: "Nope, fully backward compatible! You can update whenever you're ready",
+        timestamp: new Date(Date.now() - 3000000),
+    },
+    {
+        id: "5",
+        author: { name: "Jane Smith", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" },
+        content: "Perfect! Merging to main now 🎉",
+        timestamp: new Date(Date.now() - 2800000),
+        reactions: [{ emoji: "🎉", count: 4 }]
+    },
 ]
 
-const suggestedQueries = [
-    { icon: TrendingUp, text: "Show project progress", color: "text-green-600" },
-    { icon: Users, text: "Team performance", color: "text-blue-600" },
-    { icon: Database, text: "Data source summary", color: "text-purple-600" },
-    { icon: AlertCircle, text: "Issues & blockers", color: "text-red-600" },
-    { icon: Calendar, text: "Timeline overview", color: "text-orange-600" },
-    { icon: Zap, text: "Recent updates", color: "text-yellow-600" },
-]
-
-export default function AIChat() {
-    const [messages, setMessages] = React.useState<Message[]>(initialMessages)
-    const [input, setInput] = React.useState("")
-    const [isLoading, setIsLoading] = React.useState(false)
+export default function Chat() {
+    const [selectedChannel, setSelectedChannel] = React.useState<Channel>(channels[0])
+    const [messageInput, setMessageInput] = React.useState("")
+    const [searchQuery, setSearchQuery] = React.useState("")
     const messagesEndRef = React.useRef<HTMLDivElement>(null)
+
+    const filteredChannels = React.useMemo(() => {
+        if (!searchQuery) return channels
+        return channels.filter(ch => ch.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }, [searchQuery])
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -66,225 +105,285 @@ export default function AIChat() {
 
     React.useEffect(() => {
         scrollToBottom()
-    }, [messages])
+    }, [])
 
-    const handleSendMessage = async () => {
-        if (!input.trim()) return
-
-        // Add user message
-        const userMessage: Message = {
-            id: `msg-${Date.now()}`,
-            role: "user",
-            content: input,
-            timestamp: new Date()
+    const handleSendMessage = () => {
+        if (messageInput.trim()) {
+            console.log("Sending message:", messageInput)
+            setMessageInput("")
         }
-        setMessages(prev => [...prev, userMessage])
-        setInput("")
-        setIsLoading(true)
-
-        // Simulate AI response
-        setTimeout(() => {
-            const aiResponse: Message = {
-                id: `msg-${Date.now() + 1}`,
-                role: "assistant",
-                content: `Based on your latest data sources (GitHub, Slack, Jira), here's what I found:\n\n📊 **Current Status:**\n• Total tasks: 42\n• Completed: 18 (42.8%)\n• In Progress: 15 (35.7%)\n• Overdue: 3\n\n👥 **Team Performance:**\n• John Doe: 8 completed tasks\n• Jane Smith: 7 completed tasks\n• Bob Wilson: 3 completed tasks\n\n🔄 **Recent Updates:**\n• 12 commits from GitHub integration (last 24h)\n• 5 new Jira tickets created\n• 23 Slack messages in #frontend channel\n\nWould you like me to dive deeper into any area?`,
-                timestamp: new Date(),
-                sources: ["GitHub", "Jira", "Slack"],
-                suggestions: [
-                    "What's blocking the overdue tasks?",
-                    "Who needs support right now?",
-                    "Compare this week vs last week"
-                ]
-            }
-            setMessages(prev => [...prev, aiResponse])
-            setIsLoading(false)
-        }, 1500)
     }
 
-    const handleSuggestionClick = (text: string) => {
-        setInput(text)
-    }
+    const formatTime = (date: Date) => {
+        const now = new Date()
+        const diff = now.getTime() - date.getTime()
+        const hours = Math.floor(diff / 3600000)
+        const minutes = Math.floor((diff % 3600000) / 60000)
 
-    const handleCopy = (text: string) => {
-        navigator.clipboard.writeText(text)
+        if (hours > 24) {
+            return date.toLocaleDateString()
+        } else if (hours > 0) {
+            return `${hours}h ago`
+        } else if (minutes > 0) {
+            return `${minutes}m ago`
+        }
+        return "now"
     }
 
     return (
-        <div className="flex h-screen bg-background flex-col">
-            {/* Header */}
-            <div className="border-b border-border p-4">
-                <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
-                    <div className="flex items-center gap-2">
-                        <div className="size-10 rounded-lg bg-linear-to-br from-primary to-purple-600 flex items-center justify-center">
-                            <Sparkles className="size-6 text-primary-foreground" />
+        <div className="flex h-[calc(100vh-80px)] bg-background">
+            {/* Sidebar - Channels */}
+            <div className="w-64 border-r border-border flex flex-col">
+                {/* Header */}
+                <div className="p-4 border-b border-border">
+                    <div className="flex items-center justify-between mb-4">
+                        <h1 className="font-bold text-lg">Messages</h1>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Plus className="size-4" />
+                        </Button>
+                    </div>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground size-4" />
+                        <Input
+                            placeholder="Search channels..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 h-8 text-sm"
+                        />
+                    </div>
+                </div>
+
+                {/* Channels List */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="p-2">
+                        {/* Public Channels */}
+                        <div className="mb-4">
+                            <p className="text-xs font-semibold text-muted-foreground px-2 mb-2">CHANNELS</p>
+                            {filteredChannels.filter(ch => ch.type === "public").map((channel) => (
+                                <button
+                                    key={channel.id}
+                                    onClick={() => setSelectedChannel(channel)}
+                                    className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-colors flex items-start justify-between gap-2 ${selectedChannel.id === channel.id
+                                        ? "bg-primary text-primary-foreground"
+                                        : "hover:bg-muted"
+                                        }`}
+                                >
+                                    <span className="flex items-center gap-2 flex-1 min-w-0">
+                                        <Hash className="size-4 shrink-0" />
+                                        <span className="truncate text-sm font-medium">{channel.name}</span>
+                                    </span>
+                                    {channel.unread > 0 && (
+                                        <Badge variant="destructive" className="text-xs shrink-0">
+                                            {channel.unread}
+                                        </Badge>
+                                    )}
+                                </button>
+                            ))}
                         </div>
+
+                        {/* Direct Messages */}
                         <div>
-                            <h1 className="font-bold text-lg">Project AI Assistant</h1>
-                            <p className="text-xs text-muted-foreground">Powered by normalized data from all sources</p>
+                            <p className="text-xs font-semibold text-muted-foreground px-2 mb-2">DIRECT MESSAGES</p>
+                            {filteredChannels.filter(ch => ch.type === "direct").map((channel) => (
+                                <button
+                                    key={channel.id}
+                                    onClick={() => setSelectedChannel(channel)}
+                                    className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-colors flex items-center justify-between gap-2 ${selectedChannel.id === channel.id
+                                        ? "bg-primary text-primary-foreground"
+                                        : "hover:bg-muted"
+                                        }`}
+                                >
+                                    <span className="flex items-center gap-2 flex-1 min-w-0">
+                                        <Avatar className="size-6 shrink-0">
+                                            <AvatarFallback className="text-xs">
+                                                {channel.name.split(" ").map(n => n[0]).join("")}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="truncate text-sm font-medium">{channel.name}</span>
+                                    </span>
+                                    {channel.unread > 0 && (
+                                        <Badge variant="destructive" className="text-xs shrink-0">
+                                            {channel.unread}
+                                        </Badge>
+                                    )}
+                                </button>
+                            ))}
                         </div>
                     </div>
-                    <Button variant="outline" size="sm">
-                        <RotateCcw className="size-4" />
-                        Clear
-                    </Button>
                 </div>
             </div>
 
-            {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4">
-                <div className="max-w-4xl mx-auto space-y-4">
-                    {messages.length === 1 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-                            {suggestedQueries.map((query, idx) => {
-                                const Icon = query.icon
-                                return (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleSuggestionClick(query.text)}
-                                        className="p-3 rounded-lg border border-border hover:bg-muted transition-colors text-left group"
-                                    >
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Icon className={`size-4 ${query.color}`} />
-                                            <span className="text-sm font-medium">{query.text}</span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Get insights about {query.text.toLowerCase()}
-                                        </p>
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    )}
-
-                    {messages.map((message) => (
-                        <div
-                            key={message.id}
-                            className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                        >
-                            {message.role === "assistant" && (
-                                <Avatar className="size-8 mt-1 shrink-0">
-                                    <div className="size-8 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center">
-                                        <Sparkles className="size-4 text-primary-foreground" />
-                                    </div>
-                                </Avatar>
+            {/* Main Chat Area */}
+            <div className="flex-1 flex flex-col">
+                {/* Chat Header */}
+                <div className="border-b border-border p-4 flex items-center justify-between">
+                    <div>
+                        <h2 className="font-semibold text-lg flex items-center gap-2">
+                            {selectedChannel.type === "direct" ? (
+                                <>
+                                    <Avatar className="size-6">
+                                        <AvatarFallback className="text-xs">
+                                            {selectedChannel.name.split(" ").map(n => n[0]).join("")}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {selectedChannel.name}
+                                </>
+                            ) : (
+                                <>
+                                    <Hash className="size-5" />
+                                    {selectedChannel.name}
+                                </>
                             )}
+                        </h2>
+                        {selectedChannel.members && (
+                            <p className="text-xs text-muted-foreground mt-1">{selectedChannel.members} members</p>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Phone className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Video className="size-4" />
+                        </Button>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreVertical className="size-4" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-40 p-0" align="end">
+                                <Sidebar>
+                                    <SidebarContent>
+                                        <SidebarGroup>
+                                            <SidebarGroupContent>
+                                                <SidebarMenu>
+                                                    <SidebarMenuItem>
+                                                        <SidebarMenuButton>
+                                                            <Settings className="size-4" />
+                                                            <span>Settings</span>
+                                                        </SidebarMenuButton>
+                                                    </SidebarMenuItem>
+                                                    <SidebarMenuItem>
+                                                        <SidebarMenuButton>
+                                                            <Users className="size-4" />
+                                                            <span>Members</span>
+                                                        </SidebarMenuButton>
+                                                    </SidebarMenuItem>
+                                                    <SidebarMenuItem>
+                                                        <SidebarMenuButton>
+                                                            <MessageSquare className="size-4" />
+                                                            <span>Notifications</span>
+                                                        </SidebarMenuButton>
+                                                    </SidebarMenuItem>
+                                                </SidebarMenu>
+                                            </SidebarGroupContent>
+                                        </SidebarGroup>
+                                    </SidebarContent>
+                                </Sidebar>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
 
-                            <div className={`max-w-2xl ${message.role === "user" ? "max-w-lg" : ""}`}>
-                                {message.role === "assistant" ? (
-                                    <Card className="p-4">
-                                        <p className="text-sm whitespace-pre-wrap mb-3">{message.content}</p>
-
-                                        {message.sources && message.sources.length > 0 && (
-                                            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border">
-                                                <Database className="size-3 text-muted-foreground" />
-                                                <p className="text-xs text-muted-foreground">
-                                                    Data from: {message.sources.join(", ")}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0"
-                                                onClick={() => handleCopy(message.content)}
-                                            >
-                                                <Copy className="size-3" />
-                                            </Button>
-                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                                <ThumbsUp className="size-3" />
-                                            </Button>
-                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                                <ThumbsDown className="size-3" />
-                                            </Button>
-                                        </div>
-                                    </Card>
-                                ) : (
-                                    <div className="bg-primary text-primary-foreground rounded-lg p-4">
-                                        <p className="text-sm">{message.content}</p>
-                                    </div>
-                                )}
-
-                                {message.suggestions && message.suggestions.length > 0 && (
-                                    <div className="mt-3 space-y-2">
-                                        {message.suggestions.map((suggestion, idx) => (
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.map((message) => (
+                        <div key={message.id} className="flex gap-3 group">
+                            <Avatar className="size-8 mt-1 shrink-0">
+                                <AvatarImage src={message.author.avatar} />
+                                <AvatarFallback className="text-xs">
+                                    {message.author.name.split(" ").map(n => n[0]).join("")}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline gap-2 mb-1">
+                                    <p className="font-semibold text-sm">{message.author.name}</p>
+                                    <p className="text-xs text-muted-foreground">{formatTime(message.timestamp)}</p>
+                                </div>
+                                <p className="text-sm text-foreground wrap-break-word mb-2">{message.content}</p>
+                                {message.reactions && message.reactions.length > 0 && (
+                                    <div className="flex gap-2 flex-wrap">
+                                        {message.reactions.map((reaction) => (
                                             <button
-                                                key={idx}
-                                                onClick={() => handleSuggestionClick(suggestion)}
-                                                className="w-full text-left p-2 rounded-lg border border-border hover:bg-muted transition-colors text-sm text-muted-foreground hover:text-foreground"
+                                                key={reaction.emoji}
+                                                className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted hover:bg-muted/80 transition-colors text-sm"
                                             >
-                                                {suggestion}
+                                                <span>{reaction.emoji}</span>
+                                                <span className="text-xs">{reaction.count}</span>
                                             </button>
                                         ))}
                                     </div>
                                 )}
-
-                                <p className="text-xs text-muted-foreground mt-2">
-                                    {message.timestamp.toLocaleTimeString()}
-                                </p>
                             </div>
-
-                            {message.role === "user" && (
-                                <Avatar className="size-8 mt-1 shrink-0">
-                                    <AvatarFallback className="bg-muted">You</AvatarFallback>
-                                </Avatar>
-                            )}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                        <MoreVertical className="size-4" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-40 p-0" align="end">
+                                    <Sidebar>
+                                        <SidebarContent>
+                                            <SidebarGroup>
+                                                <SidebarGroupContent>
+                                                    <SidebarMenu>
+                                                        <SidebarMenuItem>
+                                                            <SidebarMenuButton>
+                                                                <Smile className="size-4" />
+                                                                <span>React</span>
+                                                            </SidebarMenuButton>
+                                                        </SidebarMenuItem>
+                                                        <SidebarMenuItem>
+                                                            <SidebarMenuButton>
+                                                                <MessageSquare className="size-4" />
+                                                                <span>Reply</span>
+                                                            </SidebarMenuButton>
+                                                        </SidebarMenuItem>
+                                                    </SidebarMenu>
+                                                </SidebarGroupContent>
+                                            </SidebarGroup>
+                                        </SidebarContent>
+                                    </Sidebar>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     ))}
-
-                    {isLoading && (
-                        <div className="flex gap-3">
-                            <Avatar className="size-8 mt-1 shrink-0">
-                                <div className="size-8 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center">
-                                    <Sparkles className="size-4 text-primary-foreground animate-pulse" />
-                                </div>
-                            </Avatar>
-                            <Card className="p-4">
-                                <div className="flex gap-2">
-                                    <div className="size-2 bg-muted-foreground rounded-full animate-bounce" />
-                                    <div className="size-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                                    <div className="size-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.4s" }} />
-                                </div>
-                            </Card>
-                        </div>
-                    )}
-
                     <div ref={messagesEndRef} />
                 </div>
-            </div>
 
-            {/* Input Area */}
-            <div className="border-t border-border p-4 bg-background">
-                <div className="max-w-4xl mx-auto">
-                    <div className="flex gap-2">
-                        <div className="flex-1 relative">
+                {/* Message Input */}
+                <div className="border-t border-border p-4">
+                    <div className="flex gap-2 items-end">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                            <Paperclip className="size-4" />
+                        </Button>
+                        <div className="flex-1">
                             <Input
-                                placeholder="Ask me about your project... (e.g., 'Which tasks are overdue?' or 'Show team performance')"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
+                                placeholder={`Message ${selectedChannel.type === "direct" ? selectedChannel.name : "#" + selectedChannel.name}`}
+                                value={messageInput}
+                                onChange={(e) => setMessageInput(e.target.value)}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
                                         e.preventDefault()
                                         handleSendMessage()
                                     }
                                 }}
-                                className="pr-10"
-                                disabled={isLoading}
+                                className="text-sm"
                             />
                         </div>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                            <Smile className="size-4" />
+                        </Button>
                         <Button
+                            size="sm"
                             onClick={handleSendMessage}
-                            disabled={!input.trim() || isLoading}
-                            className="gap-2"
+                            disabled={!messageInput.trim()}
+                            className="shrink-0"
                         >
                             <Send className="size-4" />
-                            <span className="hidden sm:inline">Send</span>
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                        💡 Tip: Ask natural questions about your data. I'll pull insights from all connected sources (GitHub, Slack, Jira, etc.)
-                    </p>
                 </div>
             </div>
         </div>
