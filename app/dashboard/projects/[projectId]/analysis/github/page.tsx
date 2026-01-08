@@ -36,6 +36,8 @@ import {
     getGithubCommitDetails,
     type GitHubCommitSummary,
     type GitHubCommitDetail,
+    debugGithubCommit,
+    DebugGithubCommitResponse,
 } from "@/services/github.service"
 import { llmMarkdownToHtml } from "@/lib/llm-format"
 import { DiffViewer } from "@/components/diff-viewer"
@@ -63,7 +65,9 @@ export default function GitHubAnalysis() {
     const [showDiffModal, setShowDiffModal] = React.useState(false)
     const [showDebugModal, setShowDebugModal] = React.useState(false)
     const [summaryHtml, setSummaryHtml] = React.useState<string | null>(null);
-    const [codeQualityHtml, setCodeQualityHtml] = React.useState<string | null>(null);
+    const [debugResult, setDebugResult] = React.useState<DebugGithubCommitResponse | null>(null)
+    const [isDebugLoading, setIsDebugLoading] = React.useState(false)
+    const [debugHtml, setDebugHtml] = React.useState<string | null>(null)
 
     React.useEffect(() => {
         const tab = searchParams.get("tab")
@@ -105,6 +109,21 @@ export default function GitHubAnalysis() {
         router.replace(`${pathname}?${params.toString()}`)
     }
 
+    const handleDebug = async () => {
+        if (!commitDetail) return
+
+        try {
+            setIsDebugLoading(true)
+            const res = await debugGithubCommit(projectId, commitDetail.commit.sha)
+            setDebugResult(res)
+            const html = await llmMarkdownToHtml(res.explanation)
+            setDebugHtml(html)
+            setShowDebugModal(true)
+        } finally {
+            setIsDebugLoading(false)
+        }
+    }
+
     const handleSelectCommit = async (commit: CommitSummary) => {
         setSelectedCommit(commit)
         setCommitDetail(null)
@@ -113,7 +132,6 @@ export default function GitHubAnalysis() {
             const detail = await getGithubCommitDetails(projectId, commit.sha);
             setCommitDetail(detail);
             setSummaryHtml(await llmMarkdownToHtml(detail.aiSummary));
-            setCodeQualityHtml(await llmMarkdownToHtml(detail.codeQuality));
         } catch (error) {
             console.error("Failed to load commit detail", error)
             setCommitDetail(null)
@@ -152,7 +170,7 @@ export default function GitHubAnalysis() {
                     <div>
                         <h3 className="font-semibold text-lg">{detail.commit.message}</h3>
                         <p className="text-sm text-muted-foreground">
-                            {detail.commit.sha} • {new Date(detail.commit.date).toLocaleString()}
+                            {detail.commit.sha} • {detail.commit?.date && new Date(detail.commit.date).toLocaleString()}
                         </p>
                     </div>
                 </div>
@@ -179,16 +197,42 @@ export default function GitHubAnalysis() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+
                 <Card className="p-4">
                     <h4 className="font-medium flex items-center gap-2 mb-2">
                         <CheckCircle2 className="size-4" />
                         Code Quality
                     </h4>
-                    {codeQualityHtml && (
-                        <div
-                            className="prose prose-sm max-w-none text-sm text-muted-foreground"
-                            dangerouslySetInnerHTML={{ __html: codeQualityHtml }}
-                        />
+
+                    {!detail.codeQuality ? (
+                        <div className="text-sm text-muted-foreground italic">
+                            Code quality analysis not available for this commit.
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-sm text-muted-foreground mb-2">
+                                {detail.codeQuality.summary}
+                            </div>
+
+                            {detail.codeQuality.score !== null && (
+                                <div className={`font-semibold ${getQualityColor(detail.codeQuality.score)}`}>
+                                    Score: {detail.codeQuality.score}/100
+                                </div>
+                            )}
+
+                            {detail.codeQuality.issues.length > 0 && (
+                                <ul className="mt-2 space-y-1 text-xs">
+                                    {detail.codeQuality.issues.map((issue, idx) => (
+                                        <li key={idx} className="flex gap-2">
+                                            <AlertTriangle className="size-3 mt-0.5" />
+                                            <span>
+                                                <b>{issue.type}</b> ({issue.severity}): {issue.description}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
                     )}
                 </Card>
 
@@ -197,21 +241,41 @@ export default function GitHubAnalysis() {
                         <Shield className="size-4" />
                         Security
                     </h4>
+
                     <div className="mb-2">
-                        {getSecurityBadge(detail.security.risk || "")}
+                        {getSecurityBadge(detail.security.risk)}
                     </div>
-                    {detail.security.notes?.length > 0 && (
-                        <ul className="space-y-1 text-xs text-muted-foreground">
-                            {detail.security.notes.map((note, idx) => (
-                                <li key={idx} className="flex items-start gap-1">
+
+                    <div className="text-xs text-muted-foreground mb-2">
+                        {detail.security.summary}
+                    </div>
+
+                    {detail.security.findings.length > 0 && (
+                        <ul className="space-y-1 text-xs">
+                            {detail.security.findings.map((f, idx) => (
+                                <li key={idx} className="flex gap-2">
                                     <AlertTriangle className="size-3 mt-0.5 shrink-0" />
-                                    {note}
+                                    <span>
+                                        <b>{f.type}</b> ({f.severity})
+                                        {f.file && <> in <code>{f.file}</code></>} — {f.description}
+                                    </span>
                                 </li>
                             ))}
                         </ul>
                     )}
                 </Card>
+
             </div>
+
+            {detail.canDebug && (
+                <Button
+                    onClick={handleDebug}
+                    className="w-full text-white bg-red-500 hover:bg-red-600"
+                >
+                    <Bug className="size-4 mr-2" />
+                    {isDebugLoading ? "AI Debugging..." : "AI Debug and Fix"}
+                </Button>
+            )}
 
             <div>
                 <Button onClick={() => setShowDiffModal(true)} variant="outline" className="w-full">
@@ -313,6 +377,9 @@ export default function GitHubAnalysis() {
                                 >
                                     <div className="flex items-start gap-3">
                                         <Avatar className="size-10 border-2 border-border">
+                                            {commit.authorAvatar && commit.authorUsername && (
+                                                <AvatarImage src={commit.authorAvatar} alt={commit.authorUsername} />
+                                            )}
                                             <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500 text-white">
                                                 {commit.author ? commit.author[0] : "?"}
                                             </AvatarFallback>
@@ -408,26 +475,103 @@ export default function GitHubAnalysis() {
                     </div>
                     <CustomModalClose onClose={() => setShowDebugModal(false)} />
                 </CustomModalHeader>
-                {/* <CustomModalBody className="max-h-[70vh]">
-                    {selectedItem && "debugCode" in selectedItem && (
-                        <div className="space-y-4">
-                            <div className="bg-muted/30 p-6 rounded-lg border border-border shadow-inner">
-                                <pre className="text-sm font-mono whitespace-pre-wrap overflow-x-auto leading-relaxed">
-                                    {selectedItem.debugCode}
-                                </pre>
+                <CustomModalBody className="max-h-[70vh] space-y-4">
+                    {isDebugLoading ? (
+                        <div className="animate-pulse h-32 bg-muted rounded" />
+                    ) : debugResult ? (
+                        <>
+                            {/* Risk & Safety */}
+                            <div className="flex items-center gap-3">
+                                <Badge
+                                    className={
+                                        debugResult.risk === "high"
+                                            ? "bg-red-500/20 text-red-400"
+                                            : debugResult.risk === "medium"
+                                                ? "bg-orange-500/20 text-orange-400"
+                                                : "bg-green-500/20 text-green-400"
+                                    }
+                                >
+                                    {debugResult.risk.toUpperCase()} RISK
+                                </Badge>
+
+                                {debugResult.safeToApply ? (
+                                    <Badge className="bg-green-500/20 text-green-400">
+                                        Safe to apply
+                                    </Badge>
+                                ) : (
+                                    <Badge className="bg-red-500/20 text-red-400">
+                                        Manual review required
+                                    </Badge>
+                                )}
+
+                                <span className="text-xs text-muted-foreground">
+                                    Confidence: {Math.round(debugResult.confidence * 100)}%
+                                </span>
                             </div>
+
+                            {/* Explanation */}
+                            <div>
+                                <h4 className="font-medium mb-1">Explanation</h4>
+                                {/* <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                    {debugResult.explanation}
+                                </div> */}
+
+                                {debugHtml ? (
+                                    <div
+                                        className="prose prose-sm max-w-none text-sm"
+                                        dangerouslySetInnerHTML={{ __html: debugHtml }}
+                                    />
+                                ) : (
+                                    <div className="text-sm text-muted-foreground">
+                                        No debug suggestions available
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Suggested Code */}
+                            {debugResult.suggestedCode && (
+                                <div>
+                                    <h4 className="font-medium mb-1">Suggested Code</h4>
+                                    <pre className="text-xs font-mono bg-muted/40 p-3 rounded overflow-x-auto">
+                                        {debugResult.suggestedCode}
+                                    </pre>
+                                </div>
+                            )}
+
+                            {/* Patches (future-ready) */}
+                            {debugResult.patches && debugResult.patches.length > 0 && (
+                                <div className="space-y-3">
+                                    <h4 className="font-medium">Proposed Patches</h4>
+                                    {debugResult.patches.map((p, idx) => (
+                                        <div key={idx} className="border rounded">
+                                            <div className="bg-muted px-3 py-1 text-xs font-mono">
+                                                {p.filename}
+                                            </div>
+                                            <DiffViewer patch={p.diff} />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="text-sm text-muted-foreground">
+                            No debug suggestions available
                         </div>
                     )}
-                </CustomModalBody> */}
+                </CustomModalBody>
                 <CustomModalFooter>
                     <Button variant="outline" onClick={() => setShowDebugModal(false)}>
                         Cancel
                     </Button>
-                    <Button className="bg-linear-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600" onClick={() => {
-                        // Handle commit logic here
-                        alert("Code will be committed to GitHub")
-                        setShowDebugModal(false)
-                    }}>
+
+                    <Button
+                        disabled={!debugResult?.safeToApply}
+                        className="bg-linear-to-r from-green-500 to-emerald-500 disabled:opacity-50"
+                        onClick={() => {
+                            alert("Code will be committed to GitHub")
+                            setShowDebugModal(false)
+                        }}
+                    >
                         <GitCommit className="size-4 mr-2" />
                         Commit Fix to GitHub
                     </Button>
