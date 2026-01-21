@@ -19,13 +19,15 @@ import {
 } from "@/components/ui/input-otp"
 import Image from "next/image"
 import { PlaceholderImage } from "@/assets"
-import { verify } from "@/services/auth.service"
+import { verifyOtp } from "@/services/auth.service"
 import { toast } from "sonner"
+import { useAuthStore } from "@/store/auth.store"
 
 export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const from = searchParams.get("from") || "/dashboard"
+    const auth = useAuthStore((state) => state.auth)
+    const from = searchParams.get("from") || "/"
     const email = searchParams.get("email") || ""
     const phoneNumber = searchParams.get("phoneNumber") || undefined
     const [otp, setOtp] = React.useState("")
@@ -39,7 +41,12 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
         }
         setIsSubmitting(true)
         try {
-            await verify({ otpString: otp, email: email || undefined, phoneNumber })
+            const response = await verifyOtp({ 
+                otp, 
+                email: email || undefined, 
+                phoneNumber 
+            })
+            auth.setUser(response.user)
             toast.success("Verified", { description: "Your account is verified." })
             router.push(from)
         } catch (error: any) {
@@ -61,7 +68,7 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
                             <Field className="items-center text-center">
                                 <h1 className="text-2xl font-bold">Enter verification code</h1>
                                 <p className="text-muted-foreground text-sm text-balance">
-                                    We sent a 6-digit code to your email
+                                    {email ? `We sent a 6-digit code to ${email}` : phoneNumber ? `We sent a 6-digit code to ${phoneNumber}` : "We sent a 6-digit code"}
                                 </p>
                             </Field>
                             <Field>
@@ -91,7 +98,7 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
                                     </InputOTPGroup>
                                 </InputOTP>
                                 <FieldDescription className="text-center">
-                                    Enter the 6-digit code sent to your email.
+                                    {email ? `Enter the 6-digit code sent to ${email}` : phoneNumber ? `Enter the 6-digit code sent to ${phoneNumber}` : "Enter the 6-digit code"}
                                 </FieldDescription>
                             </Field>
                             <Field>

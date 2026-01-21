@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { userOrgBySlug } from "@/services/org.service"
-import { githubInstall } from "@/services/github.provider.service"
+import { getGithubInstallUrl } from "@/services/github.service"
 import { useParams, useRouter } from "next/navigation"
 import { IOrganization } from "@/types/prisma-generated"
 import { ExternalProvider, IntegrationStatus, PredefinedOrgRole } from "@/types/enum"
@@ -80,22 +80,8 @@ export default function Organization() {
 
     const handleConnectGithub = async () => {
         if (!organization?.id) return;
-
-        setIsConnectingGithub(true);
-        try {
-            const response = await githubInstall(organization.id);
-
-            // Redirect to GitHub app installation URL
-            if (response?.url) {
-                // window.location.href = response.url;
-                // router.push(response.url);
-                window.open(response.url, "_blank", "noopener,noreferrer");
-                // window.location.assign(response.url);
-            }
-        } catch (error) {
-            console.error("Failed to connect GitHub", error);
-            setIsConnectingGithub(false);
-        }
+        // Reuse the main integrations wizard for proper OAuth → App install flow
+        router.push(`/organizations/${organization.slug}/integrations`);
     };
 
     if (!organization) {
@@ -124,9 +110,9 @@ export default function Organization() {
                             <div className="flex items-center gap-2 mt-2">
                                 <Badge variant="default">Owner</Badge>
                                 <span className="text-sm text-muted-foreground">•</span>
-                                <span className="text-sm text-muted-foreground">{organization.members.length} member{organization.members.length > 1 ? "S" : ""}</span>
+                                <span className="text-sm text-muted-foreground">{organization.members?.length || 0} member{(organization.members?.length || 0) > 1 ? "s" : ""}</span>
                                 <span className="text-sm text-muted-foreground">•</span>
-                                <span className="text-sm text-muted-foreground">{organization.projects.length} project{organization.projects.length > 1 ? "s" : ""}</span>
+                                <span className="text-sm text-muted-foreground">{organization.projects?.length || 0} project{(organization.projects?.length || 0) > 1 ? "s" : ""}</span>
                             </div>
                         </div>
                     </div>
@@ -144,8 +130,8 @@ export default function Organization() {
                         <span className="text-sm text-muted-foreground">Total Projects</span>
                         <Building2 className="size-4 text-muted-foreground" />
                     </div>
-                    <div className="text-3xl font-bold">{organization.projects.length}</div>
-                    <p className="text-xs text-muted-foreground mt-1">{organization.projects.length} active</p>
+                    <div className="text-3xl font-bold">{organization.projects?.length || 0}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{organization.projects?.length || 0} active</p>
                 </Card>
 
                 <Card className="p-6">
@@ -153,7 +139,7 @@ export default function Organization() {
                         <span className="text-sm text-muted-foreground">Team Members</span>
                         <Users className="size-4 text-muted-foreground" />
                     </div>
-                    <div className="text-3xl font-bold">{organization.members.length}</div>
+                    <div className="text-3xl font-bold">{organization.members?.length || 0}</div>
                     <p className="text-xs text-muted-foreground mt-1">Across all projects</p>
                 </Card>
 
@@ -162,7 +148,7 @@ export default function Organization() {
                         <span className="text-sm text-muted-foreground">Deployments</span>
                         <TrendingUp className="size-4 text-muted-foreground" />
                     </div>
-                    <div className="text-3xl font-bold">{organization.projects.length}</div>
+                    <div className="text-3xl font-bold">{organization.projects?.length || 0}</div>
                     <p className="text-xs text-green-600 mt-1">This week</p>
                 </Card>
 
@@ -171,7 +157,7 @@ export default function Organization() {
                         <span className="text-sm text-muted-foreground">Integrations</span>
                         <Activity className="size-4 text-muted-foreground" />
                     </div>
-                    <div className="text-3xl font-bold">{organization.integrations.filter(i => i.status === IntegrationStatus.CONNECTED).length}</div>
+                    <div className="text-3xl font-bold">{organization.integrations?.filter(i => i.status === IntegrationStatus.CONNECTED).length || 0}</div>
                     <p className="text-xs text-muted-foreground mt-1">Connected apps</p>
                 </Card>
             </div>
@@ -183,13 +169,13 @@ export default function Organization() {
                     <Card className="p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold">Project Activity</h2>
-                            {organization.projects.length > 0 && (
+                            {(organization.projects?.length || 0) > 0 && (
                                 <Button variant="outline" size="sm">View All</Button>
                             )}
                         </div>
-                        {organization.projects.length > 0 ? (
+                        {(organization.projects?.length || 0) > 0 ? (
                             <div className="space-y-4">
-                                {organization.projects.map((project) => (
+                                {organization.projects?.map((project) => (
                                     <div key={project.name} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2">
@@ -227,7 +213,7 @@ export default function Organization() {
                             </Button>
                         </div>
                         <div className="space-y-3">
-                            {organization.members.map((member) => (
+                            {organization.members?.map((member) => (
                                 <div key={member.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-10 w-10">
@@ -264,7 +250,7 @@ export default function Organization() {
                             </Link>
                         </div>
                         <div className="space-y-3">
-                            {organization.integrations.map((app) => {
+                            {organization.integrations?.map((app) => {
                                 const Icon = appIconMap[app.type];
                                 return (
                                     <div key={app.id} className="flex items-center justify-between p-3 border border-border rounded-lg">

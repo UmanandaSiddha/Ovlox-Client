@@ -25,7 +25,7 @@ export function SigninForm({
 }: React.ComponentProps<"div">) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const from = searchParams.get("from") || "/dashboard"
+    const from = searchParams.get("from") || "/"
     const { auth } = useAuthStore()
 
     const [email, setEmail] = React.useState("")

@@ -20,7 +20,7 @@ import {
     Upload,
     CheckCircle2
 } from "lucide-react"
-import { SiGithub, SiSlack, SiDiscord, SiJira, SiFigma, SiNotion } from "react-icons/si"
+import { SiGithub, SiSlack, SiDiscord, SiJira } from "react-icons/si"
 import {
     Select,
     SelectContent,
@@ -99,22 +99,6 @@ const availableIntegrations: Integration[] = [
         enum: ExternalProvider.JIRA,
         description: "Sync issues and track progress",
         icon: <SiJira className="size-6" />,
-        connected: false,
-    },
-    {
-        id: "figma",
-        name: "Figma",
-        enum: ExternalProvider.FIGMA,
-        description: "Link design files and prototypes",
-        icon: <SiFigma className="size-6" />,
-        connected: false,
-    },
-    {
-        id: "notion",
-        name: "Notion",
-        enum: ExternalProvider.NOTION,
-        description: "Connect workspaces and pages",
-        icon: <SiNotion className="size-6" />,
         connected: false,
     },
 ]

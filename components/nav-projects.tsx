@@ -7,6 +7,9 @@ import {
     Trash2,
     type LucideIcon,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useProjectStore } from "@/store/project.store"
+import type { IProject } from "@/types/prisma-generated"
 
 import {
     DropdownMenu,
@@ -28,25 +31,26 @@ import {
 export function NavProjects({
     projects,
 }: {
-    projects: {
-        name: string
-        url: string
-        icon: LucideIcon
-    }[]
+    projects: IProject[]
 }) {
     const { isMobile } = useSidebar()
+    const router = useRouter()
+    const { setCurrentProject } = useProjectStore()
 
     return (
         <SidebarGroup className="group-data-[collapsible=icon]:hidden">
             <SidebarGroupLabel>Projects</SidebarGroupLabel>
             <SidebarMenu>
-                {projects.map((item) => (
-                    <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton asChild>
-                            <a href={item.url}>
-                                <item.icon />
-                                <span>{item.name}</span>
-                            </a>
+                {projects.map((project) => (
+                    <SidebarMenuItem key={project.id}>
+                        <SidebarMenuButton
+                            onClick={() => {
+                                setCurrentProject(project)
+                                router.push(`/projects/${project.id}`)
+                            }}
+                        >
+                            <Folder className="text-muted-foreground" />
+                            <span>{project.name}</span>
                         </SidebarMenuButton>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

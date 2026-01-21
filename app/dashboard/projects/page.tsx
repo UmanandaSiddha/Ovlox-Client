@@ -7,7 +7,7 @@ import { List, Search, Plus, Grid2X2, Filter, MoreHorizontal, Settings2, FileTex
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
-import { SiDiscord, SiFigma, SiGithub, SiJira, SiSlack } from "react-icons/si"
+import { SiDiscord, SiGithub, SiJira, SiSlack } from "react-icons/si"
 
 type Project = {
     id: string
@@ -216,7 +216,7 @@ export default function Projects() {
                                     <SiSlack className="size-5" />
                                     <SiDiscord className="size-5" />
                                     <SiJira className="size-5" />
-                                    <SiFigma className="size-5" />
+                                    <SiJira className="size-5" />
                                 </div>
                             </article>
                         ))}
@@ -251,7 +251,7 @@ export default function Projects() {
                                         <SiSlack className="size-5" />
                                         <SiDiscord className="size-5" />
                                         <SiJira className="size-5" />
-                                        <SiFigma className="size-5" />
+                                        <SiJira className="size-5" />
                                     </div>
 
                                     <div className="flex items-center justify-end">

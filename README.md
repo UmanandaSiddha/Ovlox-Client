@@ -2,7 +2,7 @@
 
 *AI-powered context, insights & automation for engineering teams.*
 
-Ovlox unifies data from **GitHub, Slack, Discord, Notion, Jira** and transforms it into **centralized project intelligence**.\
+Ovlox unifies data from **GitHub, Slack, Discord, Jira** and transforms it into **centralized project intelligence**.\
 The platform ingests commits, pull requests, issues, messages, tasks, and more — then uses **LLMs + vector search** to generate summaries, insights, predictions, and provide **Chat-with-Project** functionality.
 
 ---
@@ -13,15 +13,12 @@ The platform ingests commits, pull requests, issues, messages, tasks, and more �
 
 Connect:
 
-- GitHub (Repos, Commits, PRs, Issues)
-
-- Slack (Channels, Messages)
-
-- Discord (Channels, Messages)
-
-- Notion (Databases, Pages)
-
-- Jira (Issues, Sprints, Tasks)
+- ✅ **GitHub** (Repos, Commits, PRs, Issues) - OAuth App Installation
+- ✅ **Slack** (Channels, Messages) - OAuth Integration
+- ✅ **Discord** (Channels, Messages) - OAuth Integration
+- ✅ **Jira** (Issues, Sprints, Tasks) - OAuth Integration
+- 🔲 **Notion** (Databases, Pages) - Coming soon
+- 🔲 **Figma** (Design Files) - Coming soon
 
 ### **🧠 LLM-Powered Insights**
 
@@ -91,15 +88,13 @@ Connect:
 
 ### **Frontend (Next.js)**
 
-- **Next.js 15 App Router**
-
-- **Tailwind + shadcn/ui**
-
-- **Zustand for state**
-
-- **TanStack Query for server state**
-
-- **Server actions + API proxies**
+- **Next.js 15 App Router** with route groups
+- **Tailwind + shadcn/ui** components
+- **Zustand** for global state management
+- **Axios** with interceptors for API calls and token refresh
+- **WebSocket (Socket.IO)** for real-time chat
+- **Server-Sent Events (SSE)** for integration status updates
+- **React Icons** for integration icons
 
 ---
 
@@ -280,41 +275,28 @@ pnpm dev
 
 ### **Backend**
 
-- 🔲 Finish Auth module (OTP, password, Google)
-
-- 🔲 Organization membership & invitations
-
-- 🔲 Historical ingestion engine & workers
-
-- 🔲 Integration APIs (GitHub/Slack/Discord/Notion/Jira)
-
-- 🔲 Webhook processors
-
-- 🔲 LLM summarization engine
-
-- 🔲 Project chat retrieval system
-
-- 🔲 Task sync (Notion/Jira)
+- ✅ **Auth Module** - JWT-based authentication with access/refresh tokens
+- ✅ **Organization Membership** - Member management and invitation system
+- 🔲 **Historical Ingestion** - Engine & workers for backfilling data
+- ✅ **Integration APIs** - GitHub, Slack, Discord, Jira OAuth flows
+- 🔲 **Webhook Processors** - Real-time event processing from integrations
+- 🔲 **LLM Summarization** - Engine for generating summaries and insights
+- ✅ **Project Chat** - RAG retrieval system for chat-with-project
+- 🔲 **Task Sync** - Sync tasks from Jira integrations
 
 ### **Frontend**
 
-- 🔲 Signin / Signup / Forgot password
-
-- 🔲 Dashboard layout (sidebar + topbar)
-
-- 🔲 Organization management UI
-
-- 🔲 Project overview pages
-
-- 🔲 Integration setup wizard
-
-- 🔲 Event feed
-
-- 🔲 Chat-with-project
-
-- 🔲 Task board
-
-- 🔲 Insights views
+- ✅ **Authentication** - Signin, Signup with OTP support, JWT token management
+- ✅ **Dashboard Layout** - Main layout with sidebar and navbar (hosted on `/`)
+- ✅ **Organization Management** - List, detail, members, invites, integrations pages
+- ✅ **Project Management** - List, detail, create, with integration linking
+- ✅ **Integration Setup** - GitHub, Slack, Discord, Jira integration wizards
+- ✅ **Project Chat** - RAG chat bot with conversation management
+- ✅ **Project Switcher** - Organization and project selection in navbar
+- ✅ **Project-wise Sidebar** - Dynamic menu based on selected project
+- 🔲 **Event Feed** - Real-time project events timeline
+- 🔲 **Task Board** - Project tasks management
+- 🔲 **Insights Views** - Project analytics and insights
 
 ---
 

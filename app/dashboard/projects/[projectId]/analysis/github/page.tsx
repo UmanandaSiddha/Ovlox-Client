@@ -39,6 +39,9 @@ import {
     debugGithubCommit,
     DebugGithubCommitResponse,
 } from "@/services/github.service"
+import { useOrg } from "@/hooks/useOrg"
+import { useProject } from "@/hooks/useProject"
+import { ExternalProvider } from "@/types/enum"
 import { llmMarkdownToHtml } from "@/lib/llm-format"
 import { DiffViewer } from "@/components/diff-viewer"
 
@@ -56,6 +59,8 @@ export default function GitHubAnalysis() {
     const searchParams = useSearchParams()
     const params = useParams()
     const projectId = params.projectId as string
+    const { currentOrg } = useOrg()
+    const { loadProject, currentProject } = useProject()
     const [selectedCategory, setSelectedCategory] = React.useState<"commits" | "prs" | "issues">("commits")
     const [commits, setCommits] = React.useState<CommitSummary[]>([])
     const [commitDetail, setCommitDetail] = React.useState<CommitDetail | null>(null)
@@ -83,11 +88,28 @@ export default function GitHubAnalysis() {
     }, [])
 
     React.useEffect(() => {
+        if (currentOrg?.id && projectId) {
+            loadProject(currentOrg.id, projectId as string).catch((err) => {
+                console.error("Failed to load project for GitHub analysis", err)
+            })
+        }
+    }, [currentOrg?.id, projectId, loadProject])
+
+    const githubIntegrationId = React.useMemo(() => {
+        const connections = currentProject?.integrations || []
+        const githubConnection = connections.find((conn) => conn.integration?.type === ExternalProvider.GITHUB)
+        return githubConnection?.integrationId
+    }, [currentProject])
+
+    React.useEffect(() => {
         const loadCommits = async () => {
-            if (!projectId) return
+            if (!githubIntegrationId) {
+                setCommits([])
+                return
+            }
             try {
                 setIsLoadingCommits(true)
-                const data = await getGithubCommits(projectId)
+                const data = await getGithubCommits(githubIntegrationId)
                 setCommits(data)
             } catch (error) {
                 console.error("Failed to load GitHub commits", error)
@@ -98,7 +120,7 @@ export default function GitHubAnalysis() {
         }
 
         loadCommits()
-    }, [projectId])
+    }, [githubIntegrationId])
 
     const handleTabChange = (val: string) => {
         setSelectedCategory(val as any)
@@ -110,11 +132,11 @@ export default function GitHubAnalysis() {
     }
 
     const handleDebug = async () => {
-        if (!commitDetail) return
+        if (!commitDetail || !githubIntegrationId) return
 
         try {
             setIsDebugLoading(true)
-            const res = await debugGithubCommit(projectId, commitDetail.commit.sha)
+            const res = await debugGithubCommit(githubIntegrationId, commitDetail.commit.sha)
             setDebugResult(res)
             const html = await llmMarkdownToHtml(res.explanation)
             setDebugHtml(html)
@@ -125,11 +147,12 @@ export default function GitHubAnalysis() {
     }
 
     const handleSelectCommit = async (commit: CommitSummary) => {
+        if (!githubIntegrationId) return
         setSelectedCommit(commit)
         setCommitDetail(null)
         try {
             setIsLoadingDetail(true)
-            const detail = await getGithubCommitDetails(projectId, commit.sha);
+            const detail = await getGithubCommitDetails(githubIntegrationId, commit.sha);
             setCommitDetail(detail);
             setSummaryHtml(await llmMarkdownToHtml(detail.aiSummary));
         } catch (error) {

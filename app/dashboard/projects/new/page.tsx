@@ -23,7 +23,7 @@ import {
     Target,
     Upload
 } from "lucide-react"
-import { SiGithub, SiSlack, SiDiscord, SiJira, SiFigma, SiNotion } from "react-icons/si"
+import { SiGithub, SiSlack, SiDiscord, SiJira } from "react-icons/si"
 import {
     Select,
     SelectContent,
@@ -98,14 +98,6 @@ const connectedApps: DataSource[] = [
         description: "Import tickets and track progress",
         enabled: false,
         config: { boards: ["Sprint Board", "Backlog", "Kanban"] }
-    },
-    {
-        id: "figma",
-        name: "Figma",
-        type: "design",
-        icon: <SiFigma className="size-6" />,
-        description: "Link design files and prototypes",
-        enabled: false,
     },
 ]
 

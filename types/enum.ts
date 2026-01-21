@@ -58,3 +58,23 @@ export enum IntegrationStatus {
     PROCESSING = "PROCESSING",
     NOT_CONNECTED = "NOT_CONNECTED"
 }
+
+export enum InviteStatus {
+    PENDING = "PENDING",
+    ACCEPTED = "ACCEPTED",
+    REJECTED = "REJECTED"
+}
+
+export enum ConversationType {
+    ORG = "ORG",
+    PROJECT = "PROJECT",
+    DIRECT = "DIRECT",
+    TASK_TEAM = "TASK_TEAM",
+    RAG_CHAT = "RAG_CHAT"
+}
+
+export enum ChatRole {
+    USER = "USER",
+    ASSISTANT = "ASSISTANT",
+    SYSTEM = "SYSTEM"
+}

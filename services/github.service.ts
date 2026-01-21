@@ -1,106 +1,70 @@
 import { apiClient } from "@/lib/api";
+import { 
+    GetInstallUrlResponse, 
+    GitHubRepo, 
+    GitHubOverview, 
+    ApiResponse,
+    GitHubCommitSummary,
+    GitHubCommitDetail,
+    DebugGithubCommitResponse
+} from "@/types/api-types";
 
-export type GitHubOverview = {
-    repo: {
-        name: string;
-        description: string | null;
-        defaultBranch: string;
-        stars: number;
-        forks: number;
-    };
-    activity: {
-        commits: number;
-        pullRequests: number;
-        issues: number;
-    };
-    status: string;
-};
-
-export type GitHubCommitDetail = {
-    commit: {
-        sha: string
-        message: string
-        author?: string
-        date?: string
-    }
-    aiSummary: string
-    codeQuality: {
-        score: number | null
-        summary: string
-        issues: {
-            type: string
-            severity: "low" | "medium" | "high"
-            description: string
-        }[]
-        suggestions: string[]
-    }
-    security: {
-        risk: "none" | "low" | "medium" | "high"
-        summary: string
-        findings: {
-            type: string
-            severity: "low" | "medium" | "high"
-            file?: string
-            description: string
-        }[]
-        canAutoFix: boolean
-    }
-    canDebug: boolean
-    files: {
-        filename: string
-        additions: number
-        deletions: number
-        patch?: string | null
-    }[]
-}
-
-export type GitHubCommitSummary = {
-    sha: string;
-    message: string;
-    author: string;
-    date: string;
-    authorAvatar?: string | null;
-    authorUsername?: string | null;
-    filesChanged: number;
-    additions: number;
-    deletions: number;
-};
-
-export type GitHubCommitFile = {
-    filename: string;
-    additions: number;
-    deletions: number;
-    patch: string;
-};
-
-export const getGithubOverview = async (projectId: string) => {
-    const response = await apiClient.get<GitHubOverview>(`/github/overview/c45cbcda-5fbb-4813-9cb3-22e3da4cb2ee`);
+export const getGithubInstallUrl = async (orgId: string): Promise<GetInstallUrlResponse> => {
+    const response = await apiClient.get<GetInstallUrlResponse>(`/integrations/github/install/${orgId}`);
     return response.data;
 };
 
-export const getGithubCommits = async (projectId: string) => {
-    const response = await apiClient.get<{ commits: GitHubCommitSummary[] }>(`/github/commits/c45cbcda-5fbb-4813-9cb3-22e3da4cb2ee`);
-    return response.data.commits;
-};
-
-export const getGithubCommitDetails = async (projectId: string, sha: string) => {
-    const response = await apiClient.get<GitHubCommitDetail>(`/github/commit/details/c45cbcda-5fbb-4813-9cb3-22e3da4cb2ee/${sha}`);
+// Optional "force" parameter to reconnect with a different GitHub account
+export const getGithubOAuthUrl = async (orgId: string, force?: boolean): Promise<GetInstallUrlResponse> => {
+    const response = await apiClient.get<GetInstallUrlResponse>(`/integrations/github/oauth/${orgId}`, {
+        params: force ? { force: true } : undefined,
+    });
     return response.data;
 };
 
-export type DebugGithubCommitResponse = {
-    explanation: string;
-    patches: {
-        filename: string;
-        diff: string;
-    }[];
-    suggestedCode: string | null;
-    risk: "none" | "low" | "medium" | "high";
-    confidence: number;
-    safeToApply: boolean;
-};
-
-export const debugGithubCommit = async (projectId: string, sha: string) => {
-    const response = await apiClient.get<DebugGithubCommitResponse>(`/github/debug/c45cbcda-5fbb-4813-9cb3-22e3da4cb2ee/${sha}`);
+export const getGithubRepositories = async (integrationId: string): Promise<GitHubRepo[]> => {
+    const response = await apiClient.get<GitHubRepo[]>(`/integrations/github/repo/${integrationId}`);
     return response.data;
 };
+
+export const syncGithubRepositories = async (integrationId: string) => {
+    const response = await apiClient.post<ApiResponse>(`/integrations/github/sync-repos/${integrationId}`);
+    return response.data;
+};
+
+export const getGithubOverview = async (integrationId: string): Promise<GitHubOverview> => {
+    const response = await apiClient.get<GitHubOverview>(`/integrations/github/overview/${integrationId}`);
+    return response.data;
+};
+
+export const ingestGithubData = async (integrationId: string, repoId?: string) => {
+    const params = repoId ? { repoId } : {};
+    const response = await apiClient.post<ApiResponse>(`/integrations/github/ingest/${integrationId}`, null, { params });
+    return response.data;
+};
+
+export const getGithubCommits = async (integrationId: string): Promise<GitHubCommitSummary[]> => {
+    const response = await apiClient.get<GitHubCommitSummary[]>(`/integrations/github/commits/${integrationId}`);
+    return response.data;
+};
+
+export const getGithubCommitDetails = async (integrationId: string, sha: string): Promise<GitHubCommitDetail> => {
+    const response = await apiClient.get<GitHubCommitDetail>(`/integrations/github/commit/details/${integrationId}/${sha}`);
+    return response.data;
+};
+
+export const debugGithubCommit = async (integrationId: string, sha: string): Promise<DebugGithubCommitResponse> => {
+    const response = await apiClient.get<DebugGithubCommitResponse>(`/integrations/github/debug/${integrationId}/${sha}`);
+    return response.data;
+};
+
+// Auto-connect GitHub integration using installation from another org
+export const autoConnectGithubIntegration = async (orgId: string, sourceOrgId: string) => {
+    const response = await apiClient.post<ApiResponse>(`/orgs/${orgId}/integrations/github/auto-connect`, {
+        sourceOrgId,
+    });
+    return response.data;
+};
+
+// Export types for convenience
+export type { GitHubCommitSummary, GitHubCommitDetail, DebugGithubCommitResponse };

@@ -28,9 +28,10 @@ import {
     GitFork,
     CalendarClock
 } from "lucide-react"
-import { SiGithub, SiJira, SiSlack, SiNotion, SiFigma, SiDiscord } from "react-icons/si"
+import { SiGithub, SiJira, SiSlack, SiDiscord } from "react-icons/si"
 import { useRouter, usePathname, useSearchParams, useParams } from "next/navigation"
-import { getGithubOverview, type GitHubOverview } from "@/services/github.service"
+import { getGithubOverview } from "@/services/github.service"
+import type { GitHubOverview } from "@/types/api-types"
 
 type DataSource = {
     id: string
@@ -58,7 +59,6 @@ const dataSources: DataSource[] = [
     { id: "jira", name: "Jira", icon: SiJira, color: "text-blue-600", bgColor: "bg-blue-50 dark:bg-blue-950", count: 5 },
     { id: "slack", name: "Slack", icon: SiSlack, color: "text-purple-600", bgColor: "bg-purple-50 dark:bg-purple-950", count: 6 },
     { id: "discord", name: "Discord", icon: SiDiscord, color: "text-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-950", count: 3 },
-    { id: "notion", name: "Notion", icon: SiNotion, color: "text-gray-900 dark:text-gray-100", bgColor: "bg-gray-50 dark:bg-gray-900", count: 2 },
 ]
 
 const summaries: Summary[] = [
@@ -170,24 +170,6 @@ const summaries: Summary[] = [
         metrics: [
             { label: "Open", value: "2" },
             { label: "Resolved", value: "3" }
-        ]
-    },
-    {
-        id: "7",
-        source: "notion",
-        title: "Documentation Updates",
-        type: "success",
-        content: "Team documentation has been updated with new API endpoints and integration guides. 2 new pages added covering authentication flows.",
-        highlights: [
-            "2 new documentation pages",
-            "API reference updated",
-            "Integration guides revised",
-            "Team handbook reviewed"
-        ],
-        timestamp: new Date(Date.now() - 12600000),
-        metrics: [
-            { label: "New Pages", value: "2" },
-            { label: "Updates", value: "5" }
         ]
     },
     {

@@ -39,10 +39,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         login: async ({ phoneNumber, email, password }) => {
             try {
-                const { accessToken, refreshToken, data: user } = await login({ phoneNumber, email, password });
-                Cookies.set(ACCESS_TOKEN, accessToken);
-                Cookies.set(REFRESH_TOKEN, refreshToken);
-                set((state) => ({ ...state, auth: { ...state.auth, user, accessToken, refreshToken, isLoading: false } }));
+                const { user } = await login({ phoneNumber, email, password });
+                // Tokens are set in HTTP-only cookies by backend
+                set((state) => ({ ...state, auth: { ...state.auth, user, isLoading: false } }));
             } catch (error) {
                 console.error("Login failed", error);
                 throw error;

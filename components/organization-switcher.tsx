@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { ChevronsUpDown, Plus, Building2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import {
     DropdownMenu,
@@ -18,20 +19,26 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
+import { useOrgStore } from "@/store/org.store"
+import { useProjectStore } from "@/store/project.store"
+import { userOrgs } from "@/services/org.service"
+import type { IOrganization } from "@/types/prisma-generated"
 
 export function OrganizationSwitcher({
     organizations,
+    onAddOrganization,
 }: {
-    organizations: {
-        name: string
-        logo: React.ElementType
-        plan: string
-    }[]
+    organizations: IOrganization[]
+    onAddOrganization?: () => void
 }) {
     const { isMobile } = useSidebar()
-    const [activeTeam, setActiveTeam] = React.useState(organizations[0])
+    const router = useRouter()
+    const { currentOrg, setCurrentOrg } = useOrgStore()
+    const { clearCurrentProject } = useProjectStore()
 
-    if (!activeTeam) {
+    const activeOrg = currentOrg || organizations[0]
+
+    if (!activeOrg) {
         return null
     }
 
@@ -45,11 +52,11 @@ export function OrganizationSwitcher({
                             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                         >
                             <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                                <activeTeam.logo className="size-4" />
+                                <Building2 className="size-4" />
                             </div>
                             <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-medium">{activeTeam.name}</span>
-                                <span className="truncate text-xs">{activeTeam.plan}</span>
+                                <span className="truncate font-medium">{activeOrg.name}</span>
+                                <span className="truncate text-xs text-muted-foreground">Organization</span>
                             </div>
                             <ChevronsUpDown className="ml-auto" />
                         </SidebarMenuButton>
@@ -65,19 +72,26 @@ export function OrganizationSwitcher({
                         </DropdownMenuLabel>
                         {organizations.map((organization, index) => (
                             <DropdownMenuItem
-                                key={organization.name}
-                                onClick={() => setActiveTeam(organization)}
+                                key={organization.id}
+                                onClick={() => {
+                                    setCurrentOrg(organization)
+                                    clearCurrentProject()
+                                    router.push(`/organizations/${organization.slug}`)
+                                }}
                                 className="gap-2 p-2"
                             >
                                 <div className="flex size-6 items-center justify-center rounded-md border">
-                                    <organization.logo className="size-3.5 shrink-0" />
+                                    <Building2 className="size-3.5 shrink-0" />
                                 </div>
                                 {organization.name}
                                 <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
                             </DropdownMenuItem>
                         ))}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="gap-2 p-2">
+                        <DropdownMenuItem
+                            className="gap-2 p-2"
+                            onClick={() => (onAddOrganization ? onAddOrganization() : router.push("/organizations/new"))}
+                        >
                             <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                                 <Plus className="size-4" />
                             </div>

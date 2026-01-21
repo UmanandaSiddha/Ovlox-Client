@@ -16,7 +16,6 @@ type AppItem = {
 const APPS: AppItem[] = [
     { id: "github", name: "GitHub", description: "Connect your repositories and pull requests.", logo: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" },
     { id: "slack", name: "Slack", description: "Send notifications and alerts to your Slack workspace.", logo: "https://a.slack-edge.com/80588/marketing/img/meta/slack_hash_256.png" },
-    { id: "figma", name: "Figma", description: "Preview designs and link commits to designs.", logo: "https://static.figma.com/app/icon/1/favicon.png" },
     { id: "discord", name: "Discord", description: "Push deployment notifications to a Discord channel.", logo: "https://cdn.worldvectorlogo.com/logos/discord-6.svg" },
     { id: "jira", name: "Jira", description: "Link issues and track deployments.", logo: "https://wac-cdn.atlassian.com/assets/img/favicons/atlassian/favicon.png" },
 ]
