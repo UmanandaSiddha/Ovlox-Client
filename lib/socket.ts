@@ -1,6 +1,13 @@
 import { io, Socket } from "socket.io-client";
 import Cookies from "js-cookie";
 import { ACCESS_TOKEN } from "./constants";
+import {
+    ChatMessageWithDetails,
+    WsNewMessageEvent,
+    WsMessageProcessingEvent,
+    WsTypingEvent,
+    WsMessageReadEvent,
+} from "@/types/api-types";
 
 const getSocketUrl = () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -85,31 +92,11 @@ export const markMessageAsRead = (conversationId: string, messageId: string) => 
     socket?.emit("markAsRead", { conversationId, messageId });
 };
 
-// WebSocket event types
-export interface NewMessageEvent {
-    message: IChatMessage;
-    conversationId: string;
-}
-
-export interface MessageProcessingEvent {
-    conversationId: string;
-    userMessageId: string;
-    jobId: string;
-    status: "processing";
-}
-
-export interface TypingEvent {
-    conversationId: string;
-    userId: string;
-    userName: string;
-    isTyping: boolean;
-}
-
-export interface MessageReadEvent {
-    conversationId: string;
-    messageId: string;
-    userId: string;
-}
+// Re-export types for convenience
+export type NewMessageEvent = WsNewMessageEvent;
+export type MessageProcessingEvent = WsMessageProcessingEvent;
+export type TypingEvent = WsTypingEvent;
+export type MessageReadEvent = WsMessageReadEvent;
 
 // Helper to add event listeners
 export const onNewMessage = (callback: (data: NewMessageEvent) => void) => {
@@ -131,5 +118,3 @@ export const onMessageRead = (callback: (data: MessageReadEvent) => void) => {
     socket?.on("messageRead", callback);
     return () => socket?.off("messageRead", callback);
 };
-
-import { IChatMessage } from "@/types/prisma-generated";

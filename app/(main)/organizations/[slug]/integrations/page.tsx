@@ -19,7 +19,7 @@ import { getSlackInstallUrl } from "@/services/slack.service"
 import { getDiscordInstallUrl } from "@/services/discord.service"
 import { getJiraInstallUrl } from "@/services/jira.service"
 import { listIntegrations, subscribeToIntegrationStatus } from "@/services/integration.service"
-import { IOrganization, IIntegration } from "@/types/prisma-generated"
+import { IOrganization } from "@/types/prisma-generated"
 import { ExternalProvider, IntegrationStatus } from "@/types/enum"
 import { appIconMap } from "@/lib/app.icons"
 import { toast } from "sonner"
@@ -56,7 +56,6 @@ export default function Integrations() {
     const { loadOrgBySlug, currentOrg } = useOrg()
 
     const [organization, setOrganization] = React.useState<IOrganization | null>(null)
-    const [integrations, setIntegrations] = React.useState<IIntegration[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [connecting, setConnecting] = React.useState<Record<string, boolean>>({})
     const [statusItems, setStatusItems] = React.useState<OrgIntegrationStatusItem[]>([])
@@ -69,7 +68,6 @@ export default function Integrations() {
             // prevent stale flash when switching orgs
             setIsLoading(true)
             setIsStatusLoading(true)
-            setIntegrations([])
             setStatusItems([])
             setGithubStep("oauth")
             setGithubAvatarUrl(null)
@@ -148,7 +146,6 @@ export default function Integrations() {
         try {
             const { organization } = await userOrgBySlug(slug as string)
             setOrganization(organization)
-            setIntegrations(organization.integrations || [])
         } catch (error) {
             console.error("Failed to load organization", error)
             toast.error("Failed to load organization")
@@ -159,18 +156,17 @@ export default function Integrations() {
         if (!currentOrg?.id) return
         setIsLoading(true)
         try {
-            const response = await listIntegrations(currentOrg.id)
-            setIntegrations(response.data || [])
+            // listIntegrations now returns OrgIntegrationStatusItem[] directly
+            // The actual IIntegration data comes from the SSE status updates
+            // This function is kept for compatibility but integrations state
+            // should primarily be populated from the SSE subscription
+            await listIntegrations(currentOrg.id)
         } catch (error) {
             console.error("Failed to load integrations", error)
             toast.error("Failed to load integrations")
         } finally {
             setIsLoading(false)
         }
-    }
-
-    const getIntegration = (provider: ExternalProvider): IIntegration | undefined => {
-        return integrations.find(i => i.type === provider)
     }
 
     const getStatusItem = (provider: ExternalProvider): OrgIntegrationStatusItem | undefined => {
@@ -303,18 +299,9 @@ export default function Integrations() {
     }
 
     const effectiveStatusItems = React.useMemo<OrgIntegrationStatusItem[]>(() => {
-        if (statusItems.length > 0) return statusItems
-        // fallback to legacy org integrations list if SSE hasn't loaded yet
-        return (integrations || []).map((i) => ({
-            app: i.type,
-            authType: i.authType,
-            status: i.status,
-            integrationId: i.id,
-            externalAccountId: i.externalAccountId || null,
-            externalAccount: i.externalAccount || null,
-            statusMessage: i.status === IntegrationStatus.CONNECTED ? "Connected" : i.status === IntegrationStatus.PROCESSING ? "Processing" : "Not connected",
-        }))
-    }, [statusItems, integrations])
+        // Status items come from SSE subscription
+        return statusItems
+    }, [statusItems])
 
     const statusByProviderEffective = React.useMemo(() => {
         const map = new Map<ExternalProvider, OrgIntegrationStatusItem>()
@@ -365,7 +352,6 @@ export default function Integrations() {
                                 </Card>
                             ))
                         ) : AVAILABLE_INTEGRATIONS.map((ai) => {
-                            const integration = getIntegration(ai.provider)
                             const status = statusByProviderEffective.get(ai.provider)
                             const Icon = appIconMap[ai.provider]
                             const isConnected = status?.status === IntegrationStatus.CONNECTED

@@ -31,8 +31,13 @@ import { useRouter, usePathname, useSearchParams, useParams } from "next/navigat
 import {
     getGithubCommits,
     getGithubCommitDetails,
+    getGithubPullRequests,
+    getGithubIssues,
+    syncGithubRepositories,
     type GitHubCommitSummary,
     type GitHubCommitDetail,
+    type GitHubPullRequest,
+    type GitHubIssue,
     debugGithubCommit,
     DebugGithubCommitResponse,
 } from "@/services/github.service"
@@ -56,9 +61,13 @@ export default function GitHubAnalysis() {
     const { loadProject, currentProject } = useProject()
     const [selectedCategory, setSelectedCategory] = React.useState<"commits" | "prs" | "issues">("commits")
     const [commits, setCommits] = React.useState<CommitSummary[]>([])
+    const [pullRequests, setPullRequests] = React.useState<GitHubPullRequest[]>([])
+    const [issues, setIssues] = React.useState<GitHubIssue[]>([])
     const [commitDetail, setCommitDetail] = React.useState<CommitDetail | null>(null)
     const [selectedCommit, setSelectedCommit] = React.useState<CommitSummary | null>(null)
     const [isLoadingCommits, setIsLoadingCommits] = React.useState(true)
+    const [isLoadingPRs, setIsLoadingPRs] = React.useState(true)
+    const [isLoadingIssues, setIsLoadingIssues] = React.useState(true)
     const [isLoadingDetail, setIsLoadingDetail] = React.useState(false)
     const [showDiffModal, setShowDiffModal] = React.useState(false)
     const [showDebugModal, setShowDebugModal] = React.useState(false)
@@ -66,6 +75,10 @@ export default function GitHubAnalysis() {
     const [debugResult, setDebugResult] = React.useState<DebugGithubCommitResponse | null>(null)
     const [isDebugLoading, setIsDebugLoading] = React.useState(false)
     const [debugHtml, setDebugHtml] = React.useState<string | null>(null)
+    
+    // Track if initial data has been loaded to prevent duplicate calls
+    const hasLoadedData = React.useRef(false)
+    const loadingIntegrationId = React.useRef<string | null>(null)
 
     React.useEffect(() => {
         const tab = searchParams.get("tab")
@@ -80,13 +93,14 @@ export default function GitHubAnalysis() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // Load project only if not already loaded
     React.useEffect(() => {
-        if (currentOrg?.id && projectId) {
+        if (currentOrg?.id && projectId && currentProject?.id !== projectId) {
             loadProject(currentOrg.id, projectId as string).catch((err) => {
                 console.error("Failed to load project for GitHub analysis", err)
             })
         }
-    }, [currentOrg?.id, projectId, loadProject])
+    }, [currentOrg?.id, projectId, currentProject?.id, loadProject])
 
     const githubIntegrationId = React.useMemo(() => {
         const connections = currentProject?.integrations || []
@@ -95,25 +109,67 @@ export default function GitHubAnalysis() {
     }, [currentProject])
 
     React.useEffect(() => {
-        const loadCommits = async () => {
-            if (!githubIntegrationId) {
+        const loadAllData = async () => {
+            if (!githubIntegrationId || !projectId) {
                 setCommits([])
+                setPullRequests([])
+                setIssues([])
+                setIsLoadingCommits(false)
+                setIsLoadingPRs(false)
+                setIsLoadingIssues(false)
                 return
             }
+
+            // Prevent duplicate loads for the same integration
+            if (loadingIntegrationId.current === githubIntegrationId && hasLoadedData.current) {
+                return
+            }
+            
+            loadingIntegrationId.current = githubIntegrationId
+
+            const opts = { projectId }
+
+            // Sync repos first (required before fetching data)
             try {
-                setIsLoadingCommits(true)
-                const data = await getGithubCommits(githubIntegrationId)
-                setCommits(data)
-            } catch (error) {
-                console.error("Failed to load GitHub commits", error)
-                setCommits([])
+                await syncGithubRepositories(githubIntegrationId, projectId)
+            } catch {
+                // Ignore sync errors - repos might already be synced
+            }
+
+            // Load all data in parallel
+            setIsLoadingCommits(true)
+            setIsLoadingPRs(true)
+            setIsLoadingIssues(true)
+            
+            try {
+                const [commitsData, prsData, issuesData] = await Promise.all([
+                    getGithubCommits(githubIntegrationId, opts).catch((error) => {
+                        console.error("Failed to load GitHub commits", error)
+                        return []
+                    }),
+                    getGithubPullRequests(githubIntegrationId, opts).catch((error) => {
+                        console.error("Failed to load GitHub PRs", error)
+                        return []
+                    }),
+                    getGithubIssues(githubIntegrationId, opts).catch((error) => {
+                        console.error("Failed to load GitHub issues", error)
+                        return []
+                    }),
+                ])
+                
+                setCommits(commitsData)
+                setPullRequests(prsData)
+                setIssues(issuesData)
+                hasLoadedData.current = true
             } finally {
                 setIsLoadingCommits(false)
+                setIsLoadingPRs(false)
+                setIsLoadingIssues(false)
             }
         }
 
-        loadCommits()
-    }, [githubIntegrationId])
+        loadAllData()
+    }, [githubIntegrationId, projectId])
 
     const handleTabChange = (val: string) => {
         setSelectedCategory(val as any)
@@ -125,11 +181,11 @@ export default function GitHubAnalysis() {
     }
 
     const handleDebug = async () => {
-        if (!commitDetail || !githubIntegrationId) return
+        if (!commitDetail || !githubIntegrationId || !projectId) return
 
         try {
             setIsDebugLoading(true)
-            const res = await debugGithubCommit(githubIntegrationId, commitDetail.commit.sha)
+            const res = await debugGithubCommit(githubIntegrationId, commitDetail.commit.sha, { projectId })
             setDebugResult(res)
             const html = await llmMarkdownToHtml(res.explanation)
             setDebugHtml(html)
@@ -140,12 +196,12 @@ export default function GitHubAnalysis() {
     }
 
     const handleSelectCommit = async (commit: CommitSummary) => {
-        if (!githubIntegrationId) return
+        if (!githubIntegrationId || !projectId) return
         setSelectedCommit(commit)
         setCommitDetail(null)
         try {
             setIsLoadingDetail(true)
-            const detail = await getGithubCommitDetails(githubIntegrationId, commit.sha);
+            const detail = await getGithubCommitDetails(githubIntegrationId, commit.sha, { projectId });
             setCommitDetail(detail);
             setSummaryHtml(await llmMarkdownToHtml(detail.aiSummary));
         } catch (error) {
@@ -328,12 +384,12 @@ export default function GitHubAnalysis() {
                     <TabsTrigger value="prs" className="flex items-center gap-2">
                         <GitPullRequest className="size-4" />
                         <span>Pull Requests</span>
-                        <Badge variant="outline" className="ml-1 text-xs">0</Badge>
+                        <Badge variant="outline" className="ml-1 text-xs">{pullRequests.length}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="issues" className="flex items-center gap-2">
                         <AlertCircle className="size-4" />
                         <span>Issues</span>
-                        <Badge variant="outline" className="ml-1 text-xs">0</Badge>
+                        <Badge variant="outline" className="ml-1 text-xs">{issues.length}</Badge>
                     </TabsTrigger>
                 </TabsList>
 
@@ -412,18 +468,131 @@ export default function GitHubAnalysis() {
 
                     {/* PRs */}
                     <TabsContent value="prs" className="mt-0 space-y-3">
-                        <Card className="p-6 text-sm text-muted-foreground flex items-center gap-2">
-                            <GitPullRequest className="size-4" />
-                            No pull requests found
-                        </Card>
+                        {isLoadingPRs ? (
+                            <Card className="p-6">
+                                <div className="space-y-3 animate-pulse">
+                                    <div className="h-4 w-3/4 bg-muted rounded" />
+                                    <div className="h-4 w-1/2 bg-muted rounded" />
+                                    <div className="h-20 bg-muted rounded" />
+                                </div>
+                            </Card>
+                        ) : pullRequests.length === 0 ? (
+                            <Card className="p-6 text-sm text-muted-foreground flex items-center gap-2">
+                                <GitPullRequest className="size-4" />
+                                No pull requests found
+                            </Card>
+                        ) : (
+                            pullRequests.map((pr) => (
+                                <Card
+                                    key={pr.id}
+                                    className="p-4 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2 rounded-lg ${pr.state === "open" ? "bg-green-500/10" : pr.merged ? "bg-purple-500/10" : "bg-red-500/10"}`}>
+                                            <GitPullRequest className={`size-5 ${pr.state === "open" ? "text-green-500" : pr.merged ? "text-purple-500" : "text-red-500"}`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="font-medium truncate">{pr.title}</p>
+                                                <Badge 
+                                                    variant="outline" 
+                                                    className={pr.state === "open" 
+                                                        ? "border-green-500/30 text-green-500" 
+                                                        : pr.merged 
+                                                            ? "border-purple-500/30 text-purple-500" 
+                                                            : "border-red-500/30 text-red-500"
+                                                    }
+                                                >
+                                                    {pr.merged ? "Merged" : pr.state}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mb-2">
+                                                #{pr.number} • {pr.commits} commit{pr.commits !== 1 ? "s" : ""}
+                                            </p>
+                                            <div className="flex items-center gap-3 text-xs">
+                                                <span className="text-muted-foreground">{pr.filesChanged} files</span>
+                                                <span className="text-green-400">+{pr.additions}</span>
+                                                <span className="text-red-400">-{pr.deletions}</span>
+                                            </div>
+                                            {pr.aiSummary && (
+                                                <p className="text-sm text-muted-foreground mt-3 p-3 bg-muted/30 rounded-lg">
+                                                    {pr.aiSummary}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))
+                        )}
                     </TabsContent>
 
                     {/* Issues */}
                     <TabsContent value="issues" className="mt-0 space-y-3">
-                        <Card className="p-6 text-sm text-muted-foreground flex items-center gap-2">
-                            <AlertCircle className="size-4" />
-                            No issues found
-                        </Card>
+                        {isLoadingIssues ? (
+                            <Card className="p-6">
+                                <div className="space-y-3 animate-pulse">
+                                    <div className="h-4 w-3/4 bg-muted rounded" />
+                                    <div className="h-4 w-1/2 bg-muted rounded" />
+                                    <div className="h-20 bg-muted rounded" />
+                                </div>
+                            </Card>
+                        ) : issues.length === 0 ? (
+                            <Card className="p-6 text-sm text-muted-foreground flex items-center gap-2">
+                                <AlertCircle className="size-4" />
+                                No issues found
+                            </Card>
+                        ) : (
+                            issues.map((issue) => (
+                                <Card
+                                    key={issue.number}
+                                    className="p-4 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2 rounded-lg ${issue.state === "open" ? "bg-green-500/10" : "bg-purple-500/10"}`}>
+                                            <AlertCircle className={`size-5 ${issue.state === "open" ? "text-green-500" : "text-purple-500"}`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="font-medium truncate">{issue.title}</p>
+                                                <Badge 
+                                                    variant="outline" 
+                                                    className={issue.state === "open" 
+                                                        ? "border-green-500/30 text-green-500" 
+                                                        : "border-purple-500/30 text-purple-500"
+                                                    }
+                                                >
+                                                    {issue.state}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mb-2">
+                                                #{issue.number}
+                                            </p>
+                                            {issue.labels.length > 0 && (
+                                                <div className="flex items-center gap-1 flex-wrap mb-2">
+                                                    {issue.labels.map((label, idx) => (
+                                                        <Badge key={idx} variant="secondary" className="text-xs">
+                                                            {label}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {issue.aiAnalysis && (
+                                                <div className="mt-3 p-3 bg-muted/30 rounded-lg space-y-2">
+                                                    <p className="text-sm text-muted-foreground">
+                                                        <span className="font-medium">AI Analysis:</span> {issue.aiAnalysis}
+                                                    </p>
+                                                    {issue.suggestedFix && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            <span className="font-medium">Suggested Fix:</span> {issue.suggestedFix}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))
+                        )}
                     </TabsContent>
                 </div>
             </Tabs>

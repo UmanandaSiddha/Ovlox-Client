@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import { SiGithub, SiJira, SiSlack, SiDiscord } from "react-icons/si"
 import { useRouter, useParams } from "next/navigation"
-import { getGithubOverview } from "@/services/github.service"
+import { getGithubOverview, syncGithubRepositories } from "@/services/github.service"
 import type { GitHubOverview } from "@/types/api-types"
 import { useOrg } from "@/hooks/useOrg"
 import { useProject } from "@/hooks/useProject"
@@ -65,20 +65,49 @@ export default function Analysis() {
     const [selectedSource, setSelectedSource] = React.useState("all")
     const [githubOverview, setGithubOverview] = React.useState<GitHubOverview | null>(null)
     const [isLoadingGithub, setIsLoadingGithub] = React.useState(true)
+    
+    // Track if data has been loaded to prevent duplicate calls
+    const hasLoadedData = React.useRef(false)
+    const loadingIntegrationId = React.useRef<string | null>(null)
 
+    // Load project only if not already loaded
     React.useEffect(() => {
-        if (currentOrg?.id && projectId) {
+        if (currentOrg?.id && projectId && currentProject?.id !== projectId) {
             loadProject(currentOrg.id, projectId as string)
         }
-    }, [currentOrg?.id, projectId])
+    }, [currentOrg?.id, projectId, currentProject?.id, loadProject])
+
+    // Get GitHub integration ID from project's linked integrations
+    const githubIntegrationId = React.useMemo(() => {
+        const connections = currentProject?.integrations || []
+        const githubConnection = connections.find((conn) => conn.integration?.type === ExternalProvider.GITHUB)
+        return githubConnection?.integrationId
+    }, [currentProject])
 
     React.useEffect(() => {
         const fetchGithubOverview = async () => {
-            if (!projectId) return
+            if (!githubIntegrationId || !projectId) {
+                setIsLoadingGithub(false)
+                return
+            }
+            
+            // Prevent duplicate loads for the same integration
+            if (loadingIntegrationId.current === githubIntegrationId && hasLoadedData.current) {
+                setIsLoadingGithub(false)
+                return
+            }
+            
+            loadingIntegrationId.current = githubIntegrationId
+            
             try {
                 setIsLoadingGithub(true)
-                const data = await getGithubOverview(projectId as string)
+                // Sync repos first (required before fetching overview)
+                await syncGithubRepositories(githubIntegrationId, projectId as string).catch(() => {
+                    // Ignore sync errors - repos might already be synced
+                })
+                const data = await getGithubOverview(githubIntegrationId, { projectId: projectId as string })
                 setGithubOverview(data)
+                hasLoadedData.current = true
             } catch (error) {
                 console.error("Failed to fetch GitHub overview:", error)
             } finally {
@@ -86,10 +115,8 @@ export default function Analysis() {
             }
         }
 
-        if (projectId) {
-            fetchGithubOverview()
-        }
-    }, [projectId])
+        fetchGithubOverview()
+    }, [githubIntegrationId, projectId])
 
     // Mock summaries - replace with actual API call
     const summaries: Summary[] = React.useMemo(() => {

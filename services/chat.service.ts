@@ -5,9 +5,10 @@ import {
     SendMessageRequest,
     SendMessageResponse,
     JobStatusResponse,
-    ApiResponse,
+    ChatMessageWithDetails,
+    ConversationWithDetails,
 } from "@/types/api-types";
-import { IConversation, IChatMessage, IJob } from "@/types/prisma-generated";
+import { IConversation } from "@/types/prisma-generated";
 
 // Create a new conversation
 export const createConversation = async (data: CreateConversationRequest): Promise<IConversation> => {
@@ -24,9 +25,9 @@ export const listConversations = async (params?: {
     return response.data;
 };
 
-// Get conversation by ID
-export const getConversation = async (conversationId: string): Promise<IConversation> => {
-    const response = await apiClient.get<IConversation>(`/chat/conversations/${conversationId}`);
+// Get conversation by ID with full details
+export const getConversation = async (conversationId: string): Promise<ConversationWithDetails> => {
+    const response = await apiClient.get<ConversationWithDetails>(`/chat/conversations/${conversationId}`);
     return response.data;
 };
 
@@ -39,19 +40,19 @@ export const updateConversation = async (
     return response.data;
 };
 
-// Get messages with pagination
+// Get messages with pagination (returns array directly per README)
 export const listMessages = async (
     conversationId: string,
     params?: { limit?: number; before?: string }
-): Promise<ApiResponse<IChatMessage[]>> => {
-    const response = await apiClient.get<ApiResponse<IChatMessage[]>>(
+): Promise<ChatMessageWithDetails[]> => {
+    const response = await apiClient.get<ChatMessageWithDetails[]>(
         `/chat/conversations/${conversationId}/messages`,
         { params }
     );
     return response.data;
 };
 
-// Send a message
+// Send a message (ask question)
 export const sendMessage = async (
     conversationId: string,
     data: SendMessageRequest
@@ -75,4 +76,33 @@ export const retryJob = async (jobId: string): Promise<{ status: string; jobId: 
         `/chat/jobs/${jobId}/retry`
     );
     return response.data;
+};
+
+// Stream job status via SSE (for real-time updates without WebSocket)
+export const streamJobStatus = (jobId: string, onUpdate: (data: any) => void, onError?: (error: Error) => void) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+    const eventSource = new EventSource(`${apiUrl}/chat/jobs/${jobId}/stream`, {
+        withCredentials: true,
+    });
+
+    eventSource.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            onUpdate(data);
+            
+            if (data.completed) {
+                eventSource.close();
+            }
+        } catch (error) {
+            console.error("Failed to parse SSE data:", error);
+        }
+    };
+
+    eventSource.onerror = (error) => {
+        console.error("SSE error:", error);
+        eventSource.close();
+        onError?.(new Error("Failed to stream job status"));
+    };
+
+    return () => eventSource.close();
 };

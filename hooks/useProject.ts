@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useProjectStore } from "@/store/project.store";
 import { useRouter } from "next/navigation";
 import { getProject } from "@/services/project.service";
@@ -7,16 +8,16 @@ export const useProject = () => {
     const { currentProject, setCurrentProject, clearCurrentProject } = useProjectStore();
     const router = useRouter();
 
-    const selectProject = async (project: IProject, orgId?: string) => {
+    const selectProject = React.useCallback(async (project: IProject, orgId?: string) => {
         setCurrentProject(project);
         if (orgId) {
             router.push(`/organizations/${orgId}/projects/${project.id}`);
         } else {
             router.push(`/projects/${project.id}`);
         }
-    };
+    }, [router, setCurrentProject]);
 
-    const loadProject = async (orgId: string, projectId: string) => {
+    const loadProject = React.useCallback(async (orgId: string, projectId: string) => {
         try {
             const project = await getProject(orgId, projectId);
             setCurrentProject(project);
@@ -25,7 +26,7 @@ export const useProject = () => {
             console.error("Failed to load project", error);
             throw error;
         }
-    };
+    }, [setCurrentProject]);
 
     return {
         currentProject,

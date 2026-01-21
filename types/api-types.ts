@@ -149,7 +149,43 @@ export interface GitHubRepo {
     description?: string | null;
     private: boolean;
     default_branch: string;
+    url?: string;
+    updated_at?: string;
+    pushed_at?: string;
     [key: string]: any;
+}
+
+// Project-specific repository (with accessibility info)
+export interface ProjectRepository {
+    id: string | null;
+    name: string;
+    url: string;
+    updated_at: string | null;
+    pushed_at: string | null;
+    accessible: boolean;
+}
+
+// Project Repositories Response
+export interface ProjectRepositoriesResponse {
+    projectId: string;
+    integrationId: string;
+    connectionId?: string;
+    repositories: ProjectRepository[];
+    message?: string;
+}
+
+// Sync Repositories Response
+export interface SyncRepositoriesResponse {
+    synced: number;
+    repositories: Array<{
+        id: string;
+        name: string;
+        url: string;
+        updated_at: string;
+        pushed_at: string;
+    }>;
+    projectId: string | null;
+    message?: string;
 }
 
 export interface GitHubOverview {
@@ -265,6 +301,43 @@ export interface DebugGithubCommitResponse {
     confidence: number;
 }
 
+// GitHub Pull Request Types
+export interface GitHubPullRequest {
+    id: string;
+    number: number;
+    title: string;
+    state: "open" | "closed";
+    merged: boolean;
+    commits: number;
+    filesChanged: number;
+    additions: number;
+    deletions: number;
+    aiSummary: string;
+}
+
+export interface GitHubPullRequestsResponse {
+    pullRequests: GitHubPullRequest[];
+}
+
+// GitHub Issue Types
+export interface GitHubIssue {
+    number: number;
+    title: string;
+    state: "open" | "closed";
+    labels: string[];
+    aiAnalysis: string;
+    suggestedFix: string;
+}
+
+export interface GitHubIssuesResponse {
+    issues: GitHubIssue[];
+}
+
+// GitHub Commits Response
+export interface GitHubCommitsResponse {
+    commits: GitHubCommitSummary[];
+}
+
 // Chat/Conversation API Types
 export interface CreateConversationRequest {
     projectId?: string;
@@ -273,20 +346,111 @@ export interface CreateConversationRequest {
     type?: ConversationType;
 }
 
-export interface ListConversationsResponse extends Array<IConversation> {}
+export type ListConversationsResponse = IConversation[];
 
 export interface SendMessageRequest {
     question: string;
 }
 
+// Raw event source (from RAG search)
+export interface RawEventSource {
+    id: string;
+    type?: string;
+    title?: string;
+    provider?: ExternalProvider;
+    externalId?: string;
+    metadata?: Record<string, unknown>;
+    createdAt?: string;
+}
+
+// LLM Output source
+export interface LlmOutputSource {
+    id: string;
+    type?: string;
+    content?: string;
+    metadata?: Record<string, unknown>;
+}
+
+// Chat message source with full details
+export interface ChatMessageSourceDetails {
+    id: string;
+    chatMessageId: string;
+    rawEventId?: string | null;
+    llmOutputId?: string | null;
+    relevanceScore: number;
+    createdAt: Date | string;
+    rawEvent?: RawEventSource | null;
+    llmOutput?: LlmOutputSource | null;
+}
+
+// Sender info for chat messages
+export interface ChatMessageSender {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    avatarUrl: string | null;
+}
+
+export interface ChatMessageSenderMember {
+    user: ChatMessageSender;
+}
+
+// Extended chat message with full details (as returned from API)
+export interface ChatMessageWithDetails extends Omit<IChatMessage, 'sources'> {
+    sender?: ChatMessageSender | null;
+    senderMember?: ChatMessageSenderMember | null;
+    sources?: ChatMessageSourceDetails[];
+}
+
 export interface SendMessageResponse {
     status: "processing";
     jobId: string;
-    userMessage: IChatMessage;
+    userMessage: ChatMessageWithDetails;
     message: string;
 }
 
+// Conversation with full details (as returned from API)
+export interface ConversationWithDetails extends Omit<IConversation, 'messages'> {
+    messages?: ChatMessageWithDetails[];
+    project?: {
+        id: string;
+        name: string;
+        organization: IOrganization;
+    };
+    organization?: IOrganization;
+}
+
 export interface JobStatusResponse extends IJob {}
+
+// WebSocket Event Types
+export interface WsNewMessageEvent {
+    conversationId: string;
+    message: ChatMessageWithDetails;
+    jobId?: string;
+}
+
+export interface WsMessageProcessingEvent {
+    conversationId: string;
+    userMessageId: string;
+    jobId: string;
+    status: "processing" | "completed" | "failed";
+    stage?: string;
+    assistantMessageId?: string;
+    error?: string;
+}
+
+export interface WsTypingEvent {
+    conversationId: string;
+    userId: string;
+    userName: string;
+    isTyping: boolean;
+}
+
+export interface WsMessageReadEvent {
+    conversationId: string;
+    messageId: string;
+    userId: string;
+}
 
 // SSE Integration Status
 export interface IntegrationStatusEvent {

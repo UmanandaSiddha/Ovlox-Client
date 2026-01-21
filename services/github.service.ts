@@ -6,7 +6,14 @@ import {
     ApiResponse,
     GitHubCommitSummary,
     GitHubCommitDetail,
-    DebugGithubCommitResponse
+    DebugGithubCommitResponse,
+    GitHubPullRequest,
+    GitHubPullRequestsResponse,
+    GitHubIssue,
+    GitHubIssuesResponse,
+    GitHubCommitsResponse,
+    ProjectRepositoriesResponse,
+    SyncRepositoriesResponse,
 } from "@/types/api-types";
 
 export const getGithubInstallUrl = async (orgId: string): Promise<GetInstallUrlResponse> => {
@@ -27,13 +34,26 @@ export const getGithubRepositories = async (integrationId: string): Promise<GitH
     return response.data;
 };
 
-export const syncGithubRepositories = async (integrationId: string) => {
-    const response = await apiClient.post<ApiResponse>(`/integrations/github/sync-repos/${integrationId}`);
+// Get repositories linked to a specific project
+export const getProjectRepositories = async (integrationId: string, projectId: string): Promise<ProjectRepositoriesResponse> => {
+    const response = await apiClient.get<ProjectRepositoriesResponse>(`/integrations/github/repo/${integrationId}/project/${projectId}`);
     return response.data;
 };
 
-export const getGithubOverview = async (integrationId: string): Promise<GitHubOverview> => {
-    const response = await apiClient.get<GitHubOverview>(`/integrations/github/overview/${integrationId}`);
+export const syncGithubRepositories = async (integrationId: string, projectId?: string): Promise<SyncRepositoriesResponse> => {
+    const params: Record<string, string> = {};
+    if (projectId) params.projectId = projectId;
+    
+    const response = await apiClient.post<SyncRepositoriesResponse>(`/integrations/github/sync-repos/${integrationId}`, null, { params });
+    return response.data;
+};
+
+export const getGithubOverview = async (integrationId: string, options?: { repo?: string; projectId?: string }): Promise<GitHubOverview> => {
+    const params: Record<string, string> = {};
+    if (options?.repo) params.repo = options.repo;
+    if (options?.projectId) params.projectId = options.projectId;
+    
+    const response = await apiClient.get<GitHubOverview>(`/integrations/github/overview/${integrationId}`, { params });
     return response.data;
 };
 
@@ -43,18 +63,51 @@ export const ingestGithubData = async (integrationId: string, repoId?: string) =
     return response.data;
 };
 
-export const getGithubCommits = async (integrationId: string): Promise<GitHubCommitSummary[]> => {
-    const response = await apiClient.get<GitHubCommitSummary[]>(`/integrations/github/commits/${integrationId}`);
+export const getGithubCommits = async (integrationId: string, options?: { repo?: string; projectId?: string; limit?: number }): Promise<GitHubCommitSummary[]> => {
+    const params: Record<string, string | number> = {};
+    if (options?.repo) params.repo = options.repo;
+    if (options?.projectId) params.projectId = options.projectId;
+    if (options?.limit) params.limit = options.limit;
+    
+    const response = await apiClient.get<GitHubCommitsResponse>(`/integrations/github/commits/${integrationId}`, { params });
+    return response.data.commits || [];
+};
+
+export const getGithubPullRequests = async (integrationId: string, options?: { repo?: string; projectId?: string; limit?: number }): Promise<GitHubPullRequest[]> => {
+    const params: Record<string, string | number> = {};
+    if (options?.repo) params.repo = options.repo;
+    if (options?.projectId) params.projectId = options.projectId;
+    if (options?.limit) params.limit = options.limit;
+    
+    const response = await apiClient.get<GitHubPullRequestsResponse>(`/integrations/github/pull-requests/${integrationId}`, { params });
+    return response.data.pullRequests || [];
+};
+
+export const getGithubIssues = async (integrationId: string, options?: { repo?: string; projectId?: string; limit?: number }): Promise<GitHubIssue[]> => {
+    const params: Record<string, string | number> = {};
+    if (options?.repo) params.repo = options.repo;
+    if (options?.projectId) params.projectId = options.projectId;
+    if (options?.limit) params.limit = options.limit;
+    
+    const response = await apiClient.get<GitHubIssuesResponse>(`/integrations/github/issues/${integrationId}`, { params });
+    return response.data.issues || [];
+};
+
+export const getGithubCommitDetails = async (integrationId: string, sha: string, options?: { repo?: string; projectId?: string }): Promise<GitHubCommitDetail> => {
+    const params: Record<string, string> = {};
+    if (options?.repo) params.repo = options.repo;
+    if (options?.projectId) params.projectId = options.projectId;
+    
+    const response = await apiClient.get<GitHubCommitDetail>(`/integrations/github/commit/details/${integrationId}/${sha}`, { params });
     return response.data;
 };
 
-export const getGithubCommitDetails = async (integrationId: string, sha: string): Promise<GitHubCommitDetail> => {
-    const response = await apiClient.get<GitHubCommitDetail>(`/integrations/github/commit/details/${integrationId}/${sha}`);
-    return response.data;
-};
-
-export const debugGithubCommit = async (integrationId: string, sha: string): Promise<DebugGithubCommitResponse> => {
-    const response = await apiClient.get<DebugGithubCommitResponse>(`/integrations/github/debug/${integrationId}/${sha}`);
+export const debugGithubCommit = async (integrationId: string, sha: string, options?: { repo?: string; projectId?: string }): Promise<DebugGithubCommitResponse> => {
+    const params: Record<string, string> = {};
+    if (options?.repo) params.repo = options.repo;
+    if (options?.projectId) params.projectId = options.projectId;
+    
+    const response = await apiClient.get<DebugGithubCommitResponse>(`/integrations/github/debug/${integrationId}/${sha}`, { params });
     return response.data;
 };
 
@@ -67,4 +120,4 @@ export const autoConnectGithubIntegration = async (orgId: string, sourceOrgId: s
 };
 
 // Export types for convenience
-export type { GitHubCommitSummary, GitHubCommitDetail, DebugGithubCommitResponse };
+export type { GitHubCommitSummary, GitHubCommitDetail, DebugGithubCommitResponse, GitHubPullRequest, GitHubIssue, ProjectRepositoriesResponse };
